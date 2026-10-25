@@ -1,3 +1,5 @@
+![Resumidor de videos](docs/banner.png)
+
 # Resumidor de videos
 
 [![CI](https://github.com/Dio77799/resumidor-videos/actions/workflows/ci.yml/badge.svg)](https://github.com/Dio77799/resumidor-videos/actions/workflows/ci.yml)
@@ -13,7 +15,9 @@ Funciona **100 % local y gratis** con [Ollama](https://ollama.com), o con **tu p
 ## Por qué
 - **Privado:** el video se transcribe en tu equipo con [faster-whisper](https://github.com/SYSTRAN/faster-whisper). Con Ollama, nada sale de tu computadora.
 - **Gratis:** sin suscripciones ni servidores. La app te dice antes de empezar cuánto tardará y cuánta luz gastará (≈ 1 Wh por un video de 1–2 minutos).
-- **Sencillo:** arrastras el archivo, eliges quién resume y descargas los apuntes. Temas claro, zen y nocturno.
+- **Sencillo:** arrastras el archivo, eliges quién resume y descargas los apuntes. Temas claro, zen, nocturno y retro (fósforo verde o ámbar).
+- **Para cada caso:** modo *clase* (preguntas de repaso), *reunión* (decisiones y tareas) o *charla* (ideas y frases destacadas).
+- **No repite trabajo:** si vuelves a resumir el mismo archivo, reutiliza su transcripción y Whisper no gasta nada.
 - **Ligero:** sin dependencias obligatorias. La interfaz y el núcleo usan solo la librería estándar de Python.
 
 ## Empezar
@@ -57,6 +61,8 @@ resumidor --web
 resumidor ejemplos/clase_fotosintesis.srt
 resumidor clase.mp4 --whisper large-v3-turbo --modelo qwen3:8b
 resumidor clase.mp4 --proveedor anthropic --salida ~/apuntes
+resumidor reunion.m4a --modo reunion  # decisiones, tareas y temas abiertos
+resumidor grabaciones/*.mp4            # varios archivos de una vez
 resumidor --web                     # abre la interfaz
 resumidor --help
 ```
@@ -106,6 +112,8 @@ El consumo se estima suponiendo que el equipo gasta ~45 W mientras trabaja; cám
 
 ## Usar tu propia API key
 Pégala en la interfaz (se usa para ese resumen y no se guarda) o ponla en un `.env` a partir de [`.env.example`](.env.example). Modelos por defecto: `claude-opus-5-5` y `gpt-5-mini`; puedes escribir cualquier otro.
+
+**Otros servidores compatibles con OpenAI** (LM Studio, llama.cpp, Groq, OpenRouter…): elige *OpenAI* y define `OPENAI_BASE_URL` en tu `.env`, por ejemplo `http://127.0.0.1:1234/v1` para LM Studio. *Aún no probado: cuéntanos en un issue si te funciona.*
 
 ## Personalizar los apuntes
 Edita las plantillas de [`resumidor/prompts/`](resumidor/prompts/), o usa tu propia carpeta con `RESUMIDOR_PROMPTS=/ruta/a/mis_prompts`. No hace falta tocar código.

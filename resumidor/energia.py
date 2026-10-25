@@ -48,7 +48,7 @@ def calibracion(log: Path) -> dict:
     historial = _historial(log)
     whisper, llm = {}, {}
     for f in historial:
-        if f.get("duracion_media") and f.get("seg_transcripcion") is not None:
+        if f.get("duracion_media") and f.get("seg_transcripcion") and not f.get("cache"):  # la caché no es medición
             whisper.setdefault(f["whisper"], []).append(f["seg_transcripcion"] / f["duracion_media"])
         if f.get("proveedor") == "ollama" and f.get("bloques"):
             llm.setdefault(f["modelo"], []).append(f["seg_resumen"] / _peso(f.get("llamadas", f["bloques"] + 1)))

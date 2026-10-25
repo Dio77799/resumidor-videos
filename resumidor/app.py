@@ -46,6 +46,7 @@ def procesar(id_: str, ruta: Path, opciones: dict) -> None:
                 api_key=opciones.get("api_key") or None,
                 idioma=opciones.get("idioma") or "es",
                 modelo_whisper=opciones.get("whisper") or "small",
+                modo=opciones.get("modo") if opciones.get("modo") in resumir.MODOS else "clase",
                 titulo=opciones.get("titulo") or Path(t["archivo"]).stem,
                 progreso=progreso,
             )
@@ -113,6 +114,7 @@ class Manejador(BaseHTTPRequestHandler):
                 "watts": energia.WATTS,
                 "modelos_por_defecto": proveedores.MODELOS_POR_DEFECTO,
                 "modelos_whisper": MODELOS_WHISPER,
+                "modos": resumir.MODOS,
                 "extensiones": sorted(EXT_TEXTO | EXT_MEDIA),
             })
         elif url.path.startswith("/api/trabajo/"):
@@ -128,9 +130,12 @@ class Manejador(BaseHTTPRequestHandler):
             if not t or proveedor not in proveedores.MODELOS_POR_DEFECTO:
                 return self._json({"error": "No encontrado"}, 404)
             modelo = q.get("modelo") or proveedores.MODELOS_POR_DEFECTO[proveedor]
-            es_media = Path(t["archivo"]).suffix.lower() in EXT_MEDIA
-            self._json(energia.estimar(proveedor, modelo, q.get("whisper", "small"), t.get("duracion"),
-                                       t.get("caracteres"), es_media, resumir.LOG))
+            whisper = q.get("whisper", "small")
+            en_cache = bool(t.get("huella")) and resumir.ruta_cache(t["huella"], whisper, q.get("idioma", "es")).exists()
+            # Si la transcripción ya está en caché, Whisper no trabaja: solo se estima el resumen.
+            es_media = Path(t["archivo"]).suffix.lower() in EXT_MEDIA and not en_cache
+            self._json({**energia.estimar(proveedor, modelo, whisper, t.get("duracion"), t.get("caracteres"),
+                                          es_media, resumir.LOG), "en_cache": en_cache})
         elif url.path == "/api/ollama/descargas":
             self._json(descargas)
         elif url.path.startswith("/descargar/"):
@@ -171,7 +176,8 @@ class Manejador(BaseHTTPRequestHandler):
                     restante -= len(trozo)
             duracion, caracteres = medir(ruta)
             trabajos[id_] = {"estado": "subido", "archivo": nombre, "ruta": str(ruta), "duracion": duracion,
-                             "caracteres": caracteres, "progreso": 0, "mensaje": "Archivo recibido"}
+                             "caracteres": caracteres, "progreso": 0, "mensaje": "Archivo recibido",
+                             "huella": resumir.huella(ruta) if ext in EXT_MEDIA else None}
             return self._json({"id": id_, "titulo": Path(nombre).stem, "duracion": duracion})
 
         if url.path == "/api/resumir":

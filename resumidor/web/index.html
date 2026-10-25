@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Resumidor de videos</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='3' y='6' width='58' height='44' rx='9' fill='%23141a15'/%3E%3Crect x='9' y='12' width='46' height='32' rx='5' fill='%2306150a'/%3E%3Cpath d='M17 21l10 7-10 7z' fill='%235cff8a'/%3E%3Cpath d='M33 21h14M33 28h11M33 35h13' stroke='%235cff8a' stroke-width='3' stroke-linecap='round'/%3E%3Crect x='22' y='52' width='20' height='5' rx='2' fill='%23141a15'/%3E%3C/svg%3E">
 <script>
   // El tema se aplica antes de pintar para que no parpadee.
   // ?tema=zen en la dirección tiene prioridad (útil para compartir o capturar un tema concreto).
@@ -35,6 +36,37 @@
     --acento: #6b8f71; --acento-texto: #ffffff; --acento-suave: #e4e9df; --error: #b0493a;
     --radio: 6px; --sombra: none; --titulo: Georgia, "Times New Roman", serif;
   }
+
+  /* Retro: pantalla de fósforo de terminal antigua (verde o ámbar). Diseño propio, sin marcas de terceros. */
+  :root[data-tema="retro"], :root[data-tema="ambar"] {
+    --bg: #050b06; --panel: #08130a; --texto: #5cff8a; --suave: #2fae57; --borde: #1d5a2e;
+    --acento: #5cff8a; --acento-texto: #031006; --acento-suave: #0d2614; --error: #ff6b5c;
+    --brillo: rgba(92, 255, 138, .55); --radio: 2px; --sombra: 0 0 0 1px var(--borde), 0 0 18px rgba(92, 255, 138, .08) inset;
+    --letra: "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Courier New", monospace; --titulo: var(--letra);
+  }
+  :root[data-tema="ambar"] {
+    --bg: #0b0700; --panel: #140d02; --texto: #ffb641; --suave: #b97b1c; --borde: #5c3d0c;
+    --acento: #ffb641; --acento-texto: #140d02; --acento-suave: #2a1a04; --brillo: rgba(255, 182, 65, .5);
+    --sombra: 0 0 0 1px var(--borde), 0 0 18px rgba(255, 182, 65, .07) inset;
+  }
+  :root[data-tema="retro"] body, :root[data-tema="ambar"] body { text-shadow: 0 0 6px var(--brillo); letter-spacing: .02em; }
+  :root[data-tema="retro"] body::after, :root[data-tema="ambar"] body::after {
+    /* líneas de barrido y viñeta, sin bloquear clics */
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 10;
+    background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .22) 0 1px, transparent 1px 3px),
+                radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, .55) 100%);
+  }
+  :root[data-tema="retro"] h1, :root[data-tema="ambar"] h1 { text-transform: uppercase; letter-spacing: .12em; }
+  :root[data-tema="retro"] h1::before, :root[data-tema="ambar"] h1::before { content: "> "; color: var(--suave); }
+  :root[data-tema="retro"] .etiqueta, :root[data-tema="ambar"] .etiqueta { text-transform: uppercase; letter-spacing: .1em; }
+  :root[data-tema="retro"] button, :root[data-tema="ambar"] button { text-transform: uppercase; letter-spacing: .08em; text-shadow: none; }
+  :root[data-tema="retro"] #zona, :root[data-tema="ambar"] #zona { border-style: dashed; border-width: 1px; }
+  :root[data-tema="retro"] .barra div, :root[data-tema="ambar"] .barra div {
+    background: repeating-linear-gradient(90deg, var(--acento) 0 10px, transparent 10px 13px); box-shadow: 0 0 8px var(--brillo);
+  }
+  :root[data-tema="retro"] #mensaje::after, :root[data-tema="ambar"] #mensaje::after { content: "▌"; margin-left: 4px; animation: cursor 1s steps(1) infinite; }
+  @keyframes cursor { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { #mensaje::after { animation: none !important; } }
 
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--texto); font: 15px/1.55 var(--letra); }
@@ -115,6 +147,8 @@
       <option value="claro">Claro</option>
       <option value="zen">Zen</option>
       <option value="nocturno">Nocturno</option>
+      <option value="retro">Retro · fósforo verde</option>
+      <option value="ambar">Retro · ámbar</option>
     </select>
   </header>
 
@@ -126,7 +160,10 @@
     </div>
     <input type="file" id="selector" hidden>
 
-    <span class="etiqueta">2. ¿Quién hace el resumen?</span>
+    <span class="etiqueta">2. ¿Qué es?</span>
+    <select id="modo" aria-label="Tipo de contenido"></select>
+
+    <span class="etiqueta">3. ¿Quién hace el resumen?</span>
     <div class="segmentos">
       <label><input type="radio" name="prov" value="ollama" checked>En tu equipo<small>gratis</small></label>
       <label><input type="radio" name="prov" value="anthropic">Claude<small>tu API key</small></label>
@@ -241,6 +278,7 @@ async function cargarInfo() {
   info = await (await fetch("/api/info")).json();
   $("whisper").innerHTML = info.modelos_whisper.map((m) => `<option value="${m}" ${m === "small" ? "selected" : ""}>${ETIQUETAS_WHISPER[m] || m}</option>`).join("");
   $("selector").accept = info.extensiones.join(",");
+  $("modo").innerHTML = Object.entries(info.modos).map(([v, t]) => `<option value="${v}">${escapar(t)}</option>`).join("");
   $("nota-catalogo").textContent = `Todo corre en tu equipo. Consumo estimado con el equipo a ~${info.watts} W (cámbialo con WATTS_EQUIPO en .env); se ajusta solo con tus resúmenes.`;
   actualizarProveedor();
   pintarCatalogo({});
@@ -251,14 +289,15 @@ let pedidoEstimacion = 0;
 async function estimar() {
   if (!trabajo) { $("estimacion").hidden = true; return; }
   const n = ++pedidoEstimacion;
-  const q = new URLSearchParams({ id: trabajo, proveedor: proveedor(), modelo: $("modelo").value.trim(), whisper: $("whisper").value });
+  const q = new URLSearchParams({ id: trabajo, proveedor: proveedor(), modelo: $("modelo").value.trim(), whisper: $("whisper").value, idioma: $("idioma").value });
   const r = await fetch(`/api/estimar?${q}`);
   if (!r.ok || n !== pedidoEstimacion) return;
   const e = await r.json();
   const local = proveedor() === "ollama";
   const consumo = e.wh > 0 ? ` · gasta ≈ ${whTexto(e.wh)} de luz${local ? "" : " (solo la transcripción; el resumen lo hace el proveedor)"}` : "";
   $("estimacion").innerHTML = `Tardará ≈ ${duracionTexto(e.segundos)}${consumo}` +
-    `<small>${e.medido ? "Calculado con tus resúmenes anteriores en este equipo." : "Estimación inicial; se vuelve más exacta con cada resumen que hagas."}</small>`;
+    `<small>${e.en_cache ? "Este archivo ya está transcrito: se reutiliza y Whisper no gasta nada. " : ""}` +
+    `${e.medido ? "Calculado con tus resúmenes anteriores en este equipo." : "Estimación inicial; se vuelve más exacta con cada resumen que hagas."}</small>`;
   $("estimacion").hidden = false;
 }
 
@@ -321,7 +360,7 @@ async function generar() {
   $("mensaje").className = "";
   const cuerpo = {
     id: trabajo, proveedor: proveedor(), modelo: $("modelo").value.trim(), api_key: $("key").value.trim(),
-    idioma: $("idioma").value, whisper: $("whisper").value, titulo: archivo.name.replace(/\.[^.]+$/, ""),
+    idioma: $("idioma").value, whisper: $("whisper").value, modo: $("modo").value, titulo: archivo.name.replace(/\.[^.]+$/, ""),
   };
   const r = await fetch("/api/resumir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
   if (!r.ok) { mostrarError((await r.json()).error); return; }
@@ -390,6 +429,7 @@ $("zona").addEventListener("drop", (e) => { e.preventDefault(); e.dataTransfer.f
 document.querySelectorAll("input[name=prov]").forEach((r) => r.addEventListener("change", () => actualizarProveedor()));
 $("modelo").addEventListener("change", () => actualizarProveedor(false));
 $("whisper").addEventListener("change", estimar);
+$("idioma").addEventListener("change", estimar);
 $("boton").addEventListener("click", generar);
 $("descargar").addEventListener("click", () => location.href = `/descargar/${encodeURIComponent(salida)}`);
 $("descargar-srt").addEventListener("click", () => location.href = `/descargar/${encodeURIComponent(srt)}`);
