@@ -9,6 +9,7 @@ Las keys llegan desde la interfaz o desde .env y viven solo en memoria: nunca se
 """
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 
@@ -27,23 +28,67 @@ TAM_BLOQUE = {"ollama": 6000, "anthropic": 60000, "openai": 40000}
 _CLAUDE_CON_FALLBACK = {"claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"}
 
 
+# Modelos locales recomendados (catálogo oficial de Ollama). Pensados para correr en CPU con 8–32 GB de RAM.
+CATALOGO_OLLAMA = [
+    {"modelo": "llama3.2:3b", "gb": 2.0, "nivel": "Ligero", "nota": "Funciona en casi cualquier equipo. Apuntes básicos."},
+    {"modelo": "gemma3:4b", "gb": 3.3, "nivel": "Rápido", "nota": "Mejor español que llama3.2 con casi la misma velocidad."},
+    {"modelo": "qwen3:8b", "gb": 5.2, "nivel": "Recomendado", "nota": "Buen equilibrio entre calidad y velocidad. 16 GB de RAM."},
+    {"modelo": "gemma3:12b", "gb": 8.1, "nivel": "Preciso", "nota": "Apuntes más completos. Lento sin tarjeta gráfica."},
+    {"modelo": "gpt-oss:20b", "gb": 14, "nivel": "Máxima calidad", "nota": "El mejor local de la lista. 24 GB de RAM o más."},
+]
+
+# Modelos que "piensan" antes de responder. En CPU eso cuesta minutos, así que se pide pensar lo mínimo.
+_PENSAMIENTO = {"qwen3": False, "deepseek-r1": False, "magistral": False, "gpt-oss": "low"}
+_ETIQUETA_PENSAR = re.compile(r"<think>.*?</think>\s*", re.S)
+
+
 class ErrorProveedor(RuntimeError):
     pass
 
 
 def _ollama(sistema: str, usuario: str, modelo: str, **_) -> str:
-    cuerpo = json.dumps({
+    peticion = {
         "model": modelo,
         "stream": False,
         "messages": [{"role": "system", "content": sistema}, {"role": "user", "content": usuario}],
         "options": {"num_ctx": 8192},
-    }).encode("utf-8")
-    req = urllib.request.Request(f"{OLLAMA_URL}/api/chat", data=cuerpo, headers={"Content-Type": "application/json"})
+    }
+    familia = modelo.split(":")[0]
+    if familia in _PENSAMIENTO:
+        peticion["think"] = _PENSAMIENTO[familia]
+    req = urllib.request.Request(f"{OLLAMA_URL}/api/chat", data=json.dumps(peticion).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=900) as r:
-            return json.load(r)["message"]["content"]
+        with urllib.request.urlopen(req, timeout=1800) as r:
+            return _ETIQUETA_PENSAR.sub("", json.load(r)["message"]["content"]).strip()
     except urllib.error.HTTPError as e:
-        raise ErrorProveedor(f"Ollama respondió {e.code}: {e.read().decode('utf-8', 'replace')[:300]}") from e
+        detalle = e.read().decode("utf-8", "replace")[:300]
+        if e.code == 404:
+            raise ErrorProveedor(f"El modelo {modelo} no está descargado. Descárgalo desde la lista de modelos.") from e
+        raise ErrorProveedor(f"Ollama respondió {e.code}: {detalle}") from e
+    except urllib.error.URLError as e:
+        raise ErrorProveedor("No se pudo conectar con Ollama. ¿Está abierto? (ollama serve)") from e
+    except TimeoutError as e:
+        raise ErrorProveedor(f"{modelo} tardó demasiado. Prueba un modelo más ligero o un archivo más corto.") from e
+
+
+def descargar_ollama(modelo: str, progreso) -> None:
+    """Descarga un modelo con la API de Ollama. `progreso(fraccion 0..1, mensaje)`."""
+    req = urllib.request.Request(f"{OLLAMA_URL}/api/pull", data=json.dumps({"model": modelo, "stream": True}).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=3600) as r:
+            for linea in r:
+                if not linea.strip():
+                    continue
+                evento = json.loads(linea)
+                if "error" in evento:
+                    raise ErrorProveedor(f"Ollama: {evento['error']}")
+                total, hecho = evento.get("total"), evento.get("completed")
+                if total and hecho:
+                    progreso(hecho / total, f"Descargando {modelo}… {hecho / 1e9:.1f} de {total / 1e9:.1f} GB")
+                else:
+                    progreso(None, evento.get("status", ""))
     except urllib.error.URLError as e:
         raise ErrorProveedor("No se pudo conectar con Ollama. ¿Está abierto? (ollama serve)") from e
 

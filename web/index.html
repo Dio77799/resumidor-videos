@@ -56,6 +56,16 @@
   #vista blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--borde); color: var(--suave); }
   #vista code { background: var(--acento-suave); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
   #crudo { white-space: pre-wrap; font: 13px/1.5 ui-monospace, Consolas, monospace; background: var(--bg); padding: 12px; border-radius: 8px; margin: 0; overflow-x: auto; }
+  #catalogo { margin-top: 16px; }
+  #catalogo summary { cursor: pointer; font-size: 13px; color: var(--acento); }
+  .modelo-fila { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--borde); flex-wrap: wrap; }
+  .modelo-fila:first-of-type { border-top: 0; }
+  .modelo-fila .datos { flex: 1; min-width: 220px; }
+  .modelo-fila code { font-size: 13px; }
+  .modelo-fila small { display: block; color: var(--suave); }
+  .chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--acento-suave); color: var(--acento); margin-left: 6px; }
+  .modelo-fila button { padding: 6px 12px; font-size: 13px; }
+  .modelo-fila .barra { width: 160px; margin: 0; }
   [hidden] { display: none !important; }
   footer { color: var(--suave); font-size: 13px; text-align: center; margin-top: 24px; }
 </style>
@@ -97,6 +107,11 @@
         <select id="whisper"></select>
       </label>
     </div>
+    <details id="catalogo">
+      <summary>Modelos locales recomendados · descarga uno mejor con un clic</summary>
+      <div id="lista-catalogo"></div>
+      <p class="nota">Todo corre en tu equipo. Más grande = mejores apuntes pero más lento, sobre todo sin tarjeta gráfica.</p>
+    </details>
     <p class="nota" id="nota-key" hidden>La key no se guarda: viaja solo de tu navegador a este programa local y de ahí al proveedor. Si la tienes en <code>.env</code>, deja el campo vacío.</p>
     <p class="aviso" id="avisos"></p>
   </section>
@@ -132,7 +147,10 @@
 const $ = (id) => document.getElementById(id);
 let info = null, trabajo = null, archivo = null, salida = null, srt = null;
 
-const ETIQUETAS_WHISPER = { tiny: "tiny · muy rápida", base: "base · rápida", small: "small · equilibrada", medium: "medium · precisa", "large-v3": "large-v3 · máxima (lenta)" };
+const ETIQUETAS_WHISPER = {
+  tiny: "tiny · muy rápida", base: "base · rápida", small: "small · equilibrada", medium: "medium · precisa",
+  "large-v3-turbo": "large-v3-turbo · muy precisa (recomendada)", "large-v3": "large-v3 · máxima (lenta)",
+};
 const MODELOS_SUGERIDOS = {
   anthropic: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
   openai: ["gpt-5-mini", "gpt-5"],
@@ -145,6 +163,7 @@ function esMedia(nombre) { return !/\.(srt|vtt|txt)$/i.test(nombre); }
 function actualizarProveedor() {
   const p = proveedor();
   const nube = p !== "ollama";
+  $("catalogo").hidden = nube;
   $("campo-key").hidden = !nube;
   $("nota-key").hidden = !nube;
   const sugeridos = p === "ollama" ? info.modelos_ollama : MODELOS_SUGERIDOS[p];
@@ -164,6 +183,39 @@ async function cargarInfo() {
   $("whisper").innerHTML = info.modelos_whisper.map((m) => `<option value="${m}" ${m === "small" ? "selected" : ""}>${ETIQUETAS_WHISPER[m] || m}</option>`).join("");
   $("selector").accept = info.extensiones.join(",");
   actualizarProveedor();
+  pintarCatalogo({});
+}
+
+function pintarCatalogo(descargas) {
+  $("lista-catalogo").innerHTML = info.catalogo_ollama.map((m) => {
+    const d = descargas[m.modelo];
+    let accion;
+    if (m.instalado) accion = `<button class="sec" data-usar="${m.modelo}">Usar</button>`;
+    else if (d && d.estado === "descargando")
+      accion = `<div><div class="barra"><div style="width:${Math.round(d.progreso * 100)}%"></div></div><small>${d.mensaje}</small></div>`;
+    else accion = `<button class="sec" data-bajar="${m.modelo}">Descargar · ${m.gb} GB</button>${d && d.estado === "error" ? `<small class="aviso">${d.mensaje}</small>` : ""}`;
+    return `<div class="modelo-fila"><div class="datos"><code>${m.modelo}</code><span class="chip">${m.nivel}</span><small>${m.nota}</small></div>${accion}</div>`;
+  }).join("");
+  document.querySelectorAll("[data-usar]").forEach((b) => b.addEventListener("click", () => { $("modelo").value = b.dataset.usar; }));
+  document.querySelectorAll("[data-bajar]").forEach((b) => b.addEventListener("click", () => bajar(b.dataset.bajar)));
+}
+
+async function bajar(modelo) {
+  await fetch("/api/ollama/descargar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modelo }) });
+  seguirDescargas();
+}
+
+async function seguirDescargas() {
+  const descargas = await (await fetch("/api/ollama/descargas")).json();
+  const activas = Object.values(descargas).some((d) => d.estado === "descargando");
+  if (!activas) {
+    info = await (await fetch("/api/info")).json();  // refresca qué modelos están instalados
+    const listo = Object.entries(descargas).find(([, d]) => d.estado === "listo");
+    if (listo && proveedor() === "ollama") $("modelo").value = listo[0];
+    actualizarProveedor();
+  }
+  pintarCatalogo(descargas);
+  if (activas) setTimeout(seguirDescargas, 1000);
 }
 
 async function subir(f) {
@@ -196,7 +248,11 @@ async function generar() {
 }
 
 async function seguir() {
-  const t = await (await fetch(`/api/trabajo/${trabajo}`)).json();
+  let r;
+  try { r = await fetch(`/api/trabajo/${trabajo}`); }
+  catch { return mostrarError("Se perdió la conexión con la app. ¿Sigue abierta la ventana de consola? Ábrela de nuevo y recarga la página."); }
+  if (r.status === 404) return mostrarError("La app se reinició y este trabajo se perdió. Vuelve a subir el archivo.");
+  const t = await r.json();
   $("relleno").style.width = `${Math.round((t.progreso || 0) * 100)}%`;
   $("mensaje").textContent = t.mensaje || "";
   if (t.estado === "listo") return mostrarResultado(t);

@@ -10,7 +10,7 @@ from pathlib import Path
 
 EXT_TEXTO = {".srt", ".vtt", ".txt"}
 EXT_MEDIA = {".mp4", ".mkv", ".mov", ".webm", ".avi", ".mp3", ".wav", ".m4a", ".ogg", ".flac", ".opus"}
-MODELOS_WHISPER = ["tiny", "base", "small", "medium", "large-v3"]
+MODELOS_WHISPER = ["tiny", "base", "small", "medium", "large-v3-turbo", "large-v3"]
 
 
 @dataclass
