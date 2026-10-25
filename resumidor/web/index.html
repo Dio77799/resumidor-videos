@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resumidor de videos</title>
+<script>
+  // El tema se aplica antes de pintar para que no parpadee.
+  // ?tema=zen en la dirección tiene prioridad (útil para compartir o capturar un tema concreto).
+  (() => {
+    let t = new URLSearchParams(location.search).get("tema");
+    try { t = t || localStorage.getItem("tema"); } catch {}
+    if (t && t !== "auto") document.documentElement.dataset.tema = t;
+  })();
+</script>
+<style>
+  :root, :root[data-tema="claro"] {
+    --bg: #f7f7f8; --panel: #ffffff; --texto: #1c2230; --suave: #626b7b; --borde: #e3e6eb;
+    --acento: #2f6fed; --acento-texto: #ffffff; --acento-suave: #eaf0fd; --error: #c4372f;
+    --radio: 14px; --sombra: 0 1px 2px rgba(20, 30, 50, .05);
+    --letra: system-ui, -apple-system, "Segoe UI", sans-serif; --titulo: var(--letra);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tema]) {
+      --bg: #0f1218; --panel: #171b24; --texto: #e4e7ee; --suave: #959eae; --borde: #262c38;
+      --acento: #7c9cff; --acento-texto: #0f1218; --acento-suave: #1f2840; --error: #ff7b72; --sombra: none;
+    }
+  }
+  :root[data-tema="nocturno"] {
+    --bg: #0b0d12; --panel: #12151d; --texto: #d9dde6; --suave: #8790a2; --borde: #20242f;
+    --acento: #9d8cff; --acento-texto: #0b0d12; --acento-suave: #1f1b36; --error: #ff8a80; --sombra: none;
+  }
+  :root[data-tema="zen"] {
+    --bg: #f3efe6; --panel: #f3efe6; --texto: #3b3a35; --suave: #7d7a70; --borde: #ddd6c7;
+    --acento: #6b8f71; --acento-texto: #ffffff; --acento-suave: #e4e9df; --error: #b0493a;
+    --radio: 6px; --sombra: none; --titulo: Georgia, "Times New Roman", serif;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texto); font: 15px/1.55 var(--letra); }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+  h1 { font: 600 24px/1.2 var(--titulo); margin: 0 0 4px; }
+  .lema { color: var(--suave); margin: 0; font-size: 14px; }
+  .tarjeta { background: var(--panel); border: 1px solid var(--borde); border-radius: var(--radio); padding: 24px; margin-bottom: 16px; box-shadow: var(--sombra); }
+  :root[data-tema="zen"] .tarjeta { border-width: 1px 0 0; border-radius: 0; padding: 24px 0; }
+  .etiqueta { font-size: 13px; color: var(--suave); margin: 22px 0 8px; display: block; }
+  .etiqueta:first-child { margin-top: 0; }
+
+  #zona { border: 2px dashed var(--borde); border-radius: var(--radio); padding: 32px 16px; text-align: center; cursor: pointer; transition: .15s; }
+  #zona.encima, #zona:hover { border-color: var(--acento); background: var(--acento-suave); }
+  #zona strong { display: block; font-size: 16px; }
+  #zona small { color: var(--suave); }
+  #zona.cargado { border-style: solid; padding: 16px; text-align: left; }
+
+  .segmentos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--bg); border: 1px solid var(--borde); border-radius: var(--radio); padding: 4px; }
+  .segmentos label { text-align: center; padding: 8px 4px; border-radius: calc(var(--radio) - 4px); cursor: pointer; font-size: 14px; line-height: 1.3; }
+  .segmentos label small { display: block; color: var(--suave); font-size: 12px; }
+  .segmentos input { position: absolute; opacity: 0; pointer-events: none; }
+  .segmentos label:has(input:checked) { background: var(--panel); box-shadow: 0 0 0 1px var(--acento); font-weight: 600; }
+  .segmentos label:has(input:focus-visible) { outline: 2px solid var(--acento); }
+
+  input[type=text], input[type=password], select {
+    font: inherit; color: var(--texto); background: var(--bg); border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px; width: 100%;
+  }
+  .estimacion { margin: 18px 0 0; padding: 10px 14px; border-radius: 8px; background: var(--acento-suave); font-size: 14px; }
+  .estimacion small { color: var(--suave); display: block; }
+  .nota { font-size: 13px; color: var(--suave); margin: 8px 0 0; }
+  .aviso { font-size: 13px; color: var(--error); margin: 10px 0 0; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 12px 20px; cursor: pointer; background: var(--acento); color: var(--acento-texto); font-weight: 600; }
+  button.sec { background: transparent; color: var(--acento); border: 1px solid var(--borde); font-weight: 500; padding: 8px 14px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  #boton { width: 100%; margin-top: 18px; }
+  .barra { height: 6px; background: var(--borde); border-radius: 99px; overflow: hidden; margin: 14px 0 6px; }
+  .barra div { height: 100%; width: 0; background: var(--acento); transition: width .4s; }
+  #mensaje { color: var(--suave); font-size: 14px; }
+  #mensaje.error { color: var(--error); }
+
+  details.opciones { margin-top: 20px; border-top: 1px solid var(--borde); padding-top: 14px; }
+  details.opciones > summary { cursor: pointer; color: var(--suave); font-size: 14px; }
+  .campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 14px; }
+  .campos label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--suave); }
+  .modelo-fila { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--borde); flex-wrap: wrap; }
+  .modelo-fila .datos { flex: 1; min-width: 220px; }
+  .modelo-fila code { font-size: 13px; }
+  .modelo-fila small { display: block; color: var(--suave); font-size: 12.5px; }
+  .chip { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--acento-suave); color: var(--acento); margin-left: 6px; }
+  .modelo-fila .barra { width: 150px; margin: 0 0 4px; }
+
+  .acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .acciones button { padding: 9px 16px; }
+  #real { font-size: 13px; color: var(--suave); margin: 0 0 14px; }
+  .pestanas { display: flex; gap: 4px; margin-bottom: 10px; }
+  .pestanas button { background: transparent; color: var(--suave); padding: 5px 12px; font-weight: 500; border-radius: 8px; }
+  .pestanas button.activa { background: var(--acento-suave); color: var(--acento); }
+  #vista { line-height: 1.65; overflow-wrap: anywhere; }
+  #vista h1 { font: 600 22px var(--titulo); } #vista h2 { font: 600 18px var(--titulo); margin-top: 26px; } #vista h3 { font-size: 15.5px; margin-top: 18px; }
+  #vista blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--borde); color: var(--suave); }
+  #vista code { background: var(--acento-suave); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  #crudo { white-space: pre-wrap; font: 13px/1.5 ui-monospace, Consolas, monospace; background: var(--bg); padding: 12px; border-radius: 8px; margin: 0; overflow-x: auto; }
+  [hidden] { display: none !important; }
+  footer { color: var(--suave); font-size: 12.5px; text-align: center; margin-top: 24px; }
+  @media (max-width: 480px) { header { flex-direction: column; } .tarjeta { padding: 18px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Resumidor de videos</h1>
+      <p class="lema">Tus videos, audios o transcripciones convertidos en apuntes.</p>
+    </div>
+    <select id="tema" aria-label="Tema" style="width:auto">
+      <option value="auto">Tema: automático</option>
+      <option value="claro">Claro</option>
+      <option value="zen">Zen</option>
+      <option value="nocturno">Nocturno</option>
+    </select>
+  </header>
+
+  <section class="tarjeta">
+    <span class="etiqueta">1. Elige tu archivo</span>
+    <div id="zona" tabindex="0" role="button">
+      <strong id="zona-titulo">Arrastra aquí tu archivo o haz clic</strong>
+      <small id="zona-detalle">Video, audio o transcripción (.srt, .vtt, .txt)</small>
+    </div>
+    <input type="file" id="selector" hidden>
+
+    <span class="etiqueta">2. ¿Quién hace el resumen?</span>
+    <div class="segmentos">
+      <label><input type="radio" name="prov" value="ollama" checked>En tu equipo<small>gratis</small></label>
+      <label><input type="radio" name="prov" value="anthropic">Claude<small>tu API key</small></label>
+      <label><input type="radio" name="prov" value="openai">OpenAI<small>tu API key</small></label>
+    </div>
+    <div id="campo-key" hidden>
+      <input type="password" id="key" autocomplete="off" style="margin-top:10px" placeholder="Pega tu API key (no se guarda)">
+      <p class="nota">Viaja solo de tu navegador a este programa y de ahí al proveedor. Si la tienes en <code>.env</code>, déjalo vacío.</p>
+    </div>
+    <p class="aviso" id="avisos"></p>
+
+    <div class="estimacion" id="estimacion" hidden></div>
+    <button id="boton" disabled>Generar apuntes</button>
+    <div id="progreso" hidden>
+      <div class="barra"><div id="relleno"></div></div>
+      <div id="mensaje"></div>
+    </div>
+
+    <details class="opciones">
+      <summary>Opciones: modelo, idioma y precisión</summary>
+      <div class="campos">
+        <label>Modelo
+          <input type="text" id="modelo" list="lista-modelos" autocomplete="off">
+          <datalist id="lista-modelos"></datalist>
+        </label>
+        <label>Idioma de los apuntes
+          <select id="idioma"><option value="es">Español</option><option value="en">Inglés</option><option value="pt">Portugués</option></select>
+        </label>
+        <label>Precisión de la transcripción
+          <select id="whisper"></select>
+        </label>
+      </div>
+      <div id="catalogo">
+        <span class="etiqueta">Modelos para tu equipo · lo que tarda y gasta 1 hora de video</span>
+        <div id="lista-catalogo"></div>
+        <p class="nota" id="nota-catalogo"></p>
+      </div>
+    </details>
+  </section>
+
+  <section class="tarjeta" id="resultado" hidden>
+    <div class="acciones">
+      <button id="descargar">Descargar apuntes .md</button>
+      <button class="sec" id="descargar-srt" hidden>Transcripción .srt</button>
+      <button class="sec" id="copiar">Copiar</button>
+    </div>
+    <p id="real"></p>
+    <div class="pestanas">
+      <button class="activa" data-p="vista">Vista</button>
+      <button data-p="crudo">Markdown</button>
+    </div>
+    <div id="vista"></div>
+    <pre id="crudo" hidden></pre>
+  </section>
+
+  <footer>Usa solo contenido que tengas derecho a procesar. Tus archivos se quedan en tu equipo.</footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let info = null, trabajo = null, archivo = null, duracion = null, salida = null, srt = null;
+
+const ETIQUETAS_WHISPER = {
+  tiny: "Muy rápida (tiny)", base: "Rápida (base)", small: "Equilibrada (small)", medium: "Precisa (medium)",
+  "large-v3-turbo": "Muy precisa (large-v3-turbo)", "large-v3": "Máxima, lenta (large-v3)",
+};
+const MODELOS_SUGERIDOS = {
+  anthropic: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
+  openai: ["gpt-5-mini", "gpt-5"],
+};
+
+// --- utilidades ---
+const proveedor = () => document.querySelector("input[name=prov]:checked").value;
+const esMedia = (nombre) => !/\.(srt|vtt|txt)$/i.test(nombre);
+const escapar = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function duracionTexto(seg) {
+  seg = Math.round(seg);
+  if (seg < 60) return `${seg} s`;
+  const h = Math.floor(seg / 3600), m = Math.round((seg % 3600) / 60);
+  return h ? `${h} h ${m} min` : `${m} min`;
+}
+const whTexto = (wh) => wh < 0.1 ? "menos de 0,1 Wh" : `${wh.toLocaleString("es", { maximumFractionDigits: 1 })} Wh`;
+
+// --- tema ---
+function aplicarTema(t) {
+  if (t === "auto") delete document.documentElement.dataset.tema; else document.documentElement.dataset.tema = t;
+  try { localStorage.setItem("tema", t); } catch {}
+}
+$("tema").value = document.documentElement.dataset.tema || "auto";
+$("tema").addEventListener("change", (e) => aplicarTema(e.target.value));
+
+// --- proveedor y opciones ---
+function actualizarProveedor(cambiarModelo = true) {
+  const p = proveedor(), nube = p !== "ollama";
+  $("campo-key").hidden = !nube;
+  $("catalogo").hidden = nube;
+  const sugeridos = p === "ollama" ? info.modelos_ollama : MODELOS_SUGERIDOS[p];
+  $("lista-modelos").innerHTML = sugeridos.map((m) => `<option value="${escapar(m)}">`).join("");
+  if (cambiarModelo) $("modelo").value = info.modelos_por_defecto[p];
+  const d = info.disponibles, avisos = [];
+  if (p === "ollama" && !d.ollama) avisos.push("No se detecta Ollama. Ábrelo y recarga la página.");
+  if (p === "ollama" && d.ollama && !info.modelos_ollama.includes($("modelo").value)) avisos.push(`El modelo ${$("modelo").value} no está descargado: descárgalo en Opciones.`);
+  if (p === "anthropic" && !d.anthropic_sdk) avisos.push("Falta el SDK de Claude: pip install anthropic");
+  if (p === "openai" && !d.openai_sdk) avisos.push("Falta el SDK de OpenAI: pip install openai");
+  if (archivo && esMedia(archivo.name) && !d.faster_whisper) avisos.push("Para audio/video falta faster-whisper (pip install -r requirements.txt).");
+  $("avisos").textContent = avisos.join(" ");
+  if (nube) $("key").placeholder = d[`key_${p}_env`] ? "Ya hay una key en .env (opcional)" : "Pega tu API key (no se guarda)";
+  estimar();
+}
+
+async function cargarInfo() {
+  info = await (await fetch("/api/info")).json();
+  $("whisper").innerHTML = info.modelos_whisper.map((m) => `<option value="${m}" ${m === "small" ? "selected" : ""}>${ETIQUETAS_WHISPER[m] || m}</option>`).join("");
+  $("selector").accept = info.extensiones.join(",");
+  $("nota-catalogo").textContent = `Todo corre en tu equipo. Consumo estimado con el equipo a ~${info.watts} W (cámbialo con WATTS_EQUIPO en .env); se ajusta solo con tus resúmenes.`;
+  actualizarProveedor();
+  pintarCatalogo({});
+}
+
+// --- estimación antes de generar ---
+let pedidoEstimacion = 0;
+async function estimar() {
+  if (!trabajo) { $("estimacion").hidden = true; return; }
+  const n = ++pedidoEstimacion;
+  const q = new URLSearchParams({ id: trabajo, proveedor: proveedor(), modelo: $("modelo").value.trim(), whisper: $("whisper").value });
+  const r = await fetch(`/api/estimar?${q}`);
+  if (!r.ok || n !== pedidoEstimacion) return;
+  const e = await r.json();
+  const local = proveedor() === "ollama";
+  const consumo = e.wh > 0 ? ` · gasta ≈ ${whTexto(e.wh)} de luz${local ? "" : " (solo la transcripción; el resumen lo hace el proveedor)"}` : "";
+  $("estimacion").innerHTML = `Tardará ≈ ${duracionTexto(e.segundos)}${consumo}` +
+    `<small>${e.medido ? "Calculado con tus resúmenes anteriores en este equipo." : "Estimación inicial; se vuelve más exacta con cada resumen que hagas."}</small>`;
+  $("estimacion").hidden = false;
+}
+
+// --- catálogo de modelos locales ---
+function pintarCatalogo(descargas) {
+  $("lista-catalogo").innerHTML = info.catalogo_ollama.map((m) => {
+    const d = descargas[m.modelo];
+    let accion;
+    if (m.instalado) accion = `<button class="sec" data-usar="${escapar(m.modelo)}">Usar</button>`;
+    else if (d && d.estado === "descargando")
+      accion = `<div><div class="barra"><div style="width:${Math.round(d.progreso * 100)}%"></div></div><small>${escapar(d.mensaje)}</small></div>`;
+    else accion = `<button class="sec" data-bajar="${escapar(m.modelo)}">Descargar · ${m.gb} GB</button>${d && d.estado === "error" ? `<small class="aviso">${escapar(d.mensaje)}</small>` : ""}`;
+    const hora = `1 h de video ≈ ${duracionTexto(m.hora.segundos)} · ${whTexto(m.hora.wh)}`;
+    return `<div class="modelo-fila"><div class="datos"><code>${escapar(m.modelo)}</code><span class="chip">${escapar(m.nivel)}</span>` +
+      `<small>${escapar(m.nota)}</small><small>${hora}</small></div>${accion}</div>`;
+  }).join("");
+  document.querySelectorAll("[data-usar]").forEach((b) => b.addEventListener("click", () => { $("modelo").value = b.dataset.usar; actualizarProveedor(false); }));
+  document.querySelectorAll("[data-bajar]").forEach((b) => b.addEventListener("click", () => bajar(b.dataset.bajar)));
+}
+
+async function bajar(modelo) {
+  await fetch("/api/ollama/descargar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modelo }) });
+  seguirDescargas();
+}
+
+async function seguirDescargas() {
+  const descargas = await (await fetch("/api/ollama/descargas")).json();
+  const activas = Object.values(descargas).some((d) => d.estado === "descargando");
+  if (!activas) {
+    info = await (await fetch("/api/info")).json();
+    const listo = Object.entries(descargas).find(([, d]) => d.estado === "listo");
+    if (listo && proveedor() === "ollama") $("modelo").value = listo[0];
+    actualizarProveedor(false);
+  }
+  pintarCatalogo(descargas);
+  if (activas) setTimeout(seguirDescargas, 1000);
+}
+
+// --- subir y generar ---
+async function subir(f) {
+  archivo = f; trabajo = null; duracion = null;
+  $("boton").disabled = true;
+  $("zona").classList.add("cargado");
+  $("zona-titulo").textContent = f.name;
+  $("zona-detalle").textContent = `Subiendo… ${(f.size / 1048576).toFixed(1)} MB`;
+  actualizarProveedor(false);
+  const r = await fetch("/api/subir", { method: "POST", headers: { "X-Nombre": encodeURIComponent(f.name) }, body: f });
+  const datos = await r.json();
+  if (!r.ok) { $("zona-detalle").textContent = datos.error; return; }
+  trabajo = datos.id; duracion = datos.duracion;
+  $("zona-detalle").textContent = `${duracion ? `${duracionTexto(duracion)} · ` : ""}${(f.size / 1048576).toFixed(1)} MB · listo. Clic para cambiar.`;
+  $("boton").disabled = false;
+  estimar();
+}
+
+async function generar() {
+  $("boton").disabled = true;
+  $("progreso").hidden = false;
+  $("resultado").hidden = true;
+  $("mensaje").className = "";
+  const cuerpo = {
+    id: trabajo, proveedor: proveedor(), modelo: $("modelo").value.trim(), api_key: $("key").value.trim(),
+    idioma: $("idioma").value, whisper: $("whisper").value, titulo: archivo.name.replace(/\.[^.]+$/, ""),
+  };
+  const r = await fetch("/api/resumir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
+  if (!r.ok) { mostrarError((await r.json()).error); return; }
+  seguir();
+}
+
+async function seguir() {
+  let r;
+  try { r = await fetch(`/api/trabajo/${trabajo}`); }
+  catch { return mostrarError("Se perdió la conexión con la app. ¿Sigue abierta la ventana de consola? Ábrela de nuevo y recarga la página."); }
+  if (r.status === 404) return mostrarError("La app se reinició y este trabajo se perdió. Vuelve a subir el archivo.");
+  const t = await r.json();
+  $("relleno").style.width = `${Math.round((t.progreso || 0) * 100)}%`;
+  $("mensaje").textContent = t.mensaje || "";
+  if (t.estado === "listo") return mostrarResultado(t);
+  if (t.estado === "error") return mostrarError(t.mensaje);
+  setTimeout(seguir, 1000);
+}
+
+function mostrarError(texto) {
+  $("progreso").hidden = false;
+  $("mensaje").textContent = texto;
+  $("mensaje").className = "error";
+  $("boton").disabled = false;
+}
+
+function mostrarResultado(t) {
+  salida = t.salida; srt = t.srt;
+  $("crudo").textContent = t.markdown;
+  $("vista").innerHTML = markdown(t.markdown);
+  $("descargar-srt").hidden = !srt;
+  $("real").textContent = `Tardó ${duracionTexto(t.real.segundos)}` +
+    (t.real.wh > 0 ? ` · tu equipo gastó ≈ ${whTexto(t.real.wh)} (a ~${t.real.watts} W)` : "");
+  $("resultado").hidden = false;
+  $("progreso").hidden = true;
+  $("boton").disabled = false;
+  $("resultado").scrollIntoView({ behavior: "smooth" });
+  estimar();  // la próxima estimación ya usa este resumen
+}
+
+// Conversor mínimo de Markdown (títulos, listas, negrita, código, citas). Escapa el HTML antes.
+function markdown(md) {
+  const enLinea = (s) => escapar(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  let html = "", lista = null;
+  const cerrar = () => { if (lista) { html += `</${lista}>`; lista = null; } };
+  for (const linea of md.split("\n")) {
+    let m;
+    if ((m = linea.match(/^(#{1,4})\s+(.*)/))) { cerrar(); html += `<h${m[1].length}>${enLinea(m[2])}</h${m[1].length}>`; }
+    else if ((m = linea.match(/^\s*[-*]\s+(.*)/))) { if (lista !== "ul") { cerrar(); html += "<ul>"; lista = "ul"; } html += `<li>${enLinea(m[1])}</li>`; }
+    else if ((m = linea.match(/^\s*\d+[.)]\s+(.*)/))) { if (lista !== "ol") { cerrar(); html += "<ol>"; lista = "ol"; } html += `<li>${enLinea(m[1])}</li>`; }
+    else if ((m = linea.match(/^>\s?(.*)/))) { cerrar(); html += `<blockquote>${enLinea(m[1])}</blockquote>`; }
+    else if (linea.trim()) { cerrar(); html += `<p>${enLinea(linea)}</p>`; }
+    else cerrar();
+  }
+  cerrar();
+  return html;
+}
+
+// --- eventos ---
+$("zona").addEventListener("click", () => $("selector").click());
+$("zona").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") $("selector").click(); });
+$("selector").addEventListener("change", (e) => e.target.files[0] && subir(e.target.files[0]));
+["dragenter", "dragover"].forEach((ev) => $("zona").addEventListener(ev, (e) => { e.preventDefault(); $("zona").classList.add("encima"); }));
+["dragleave", "drop"].forEach((ev) => $("zona").addEventListener(ev, () => $("zona").classList.remove("encima")));
+$("zona").addEventListener("drop", (e) => { e.preventDefault(); e.dataTransfer.files[0] && subir(e.dataTransfer.files[0]); });
+document.querySelectorAll("input[name=prov]").forEach((r) => r.addEventListener("change", () => actualizarProveedor()));
+$("modelo").addEventListener("change", () => actualizarProveedor(false));
+$("whisper").addEventListener("change", estimar);
+$("boton").addEventListener("click", generar);
+$("descargar").addEventListener("click", () => location.href = `/descargar/${encodeURIComponent(salida)}`);
+$("descargar-srt").addEventListener("click", () => location.href = `/descargar/${encodeURIComponent(srt)}`);
+$("copiar").addEventListener("click", async () => { await navigator.clipboard.writeText($("crudo").textContent); $("copiar").textContent = "¡Copiado!"; setTimeout(() => $("copiar").textContent = "Copiar", 1500); });
+document.querySelectorAll(".pestanas button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(".pestanas button").forEach((x) => x.classList.toggle("activa", x === b));
+  $("vista").hidden = b.dataset.p !== "vista";
+  $("crudo").hidden = b.dataset.p !== "crudo";
+}));
+cargarInfo();
+</script>
+</body>
+</html>

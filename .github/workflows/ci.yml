@@ -29,3 +29,18 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -s tests -t . -v
+
+  paquete:
+    # Se instala como dependencia (sin la interfaz) y el comando responde.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - run: |
+          cd /tmp
+          resumidor --version
+          python -m resumidor --help
+          python -c "import resumidor.resumir as r; assert (r.PROMPTS / 'unico.md').exists(); assert (r.PAQUETE / 'web' / 'index.html').exists()"

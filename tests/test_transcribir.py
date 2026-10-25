@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from transcribir import a_srt, formato_tiempo, leer_subtitulos, leer_txt, obtener_segmentos
+from resumidor.transcribir import a_srt, formato_tiempo, leer_subtitulos, leer_txt, obtener_segmentos
 
 EJEMPLO = Path(__file__).resolve().parent.parent / "ejemplos" / "clase_fotosintesis.srt"
 

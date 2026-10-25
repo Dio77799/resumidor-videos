@@ -29,12 +29,19 @@ _CLAUDE_CON_FALLBACK = {"claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", 
 
 
 # Modelos locales recomendados (catálogo oficial de Ollama). Pensados para correr en CPU con 8–32 GB de RAM.
+# seg_llamada: segundos por petición en una laptop sin tarjeta gráfica. llama3.2:3b está medido; el resto se
+# estima por tamaño (gpt-oss activa solo una parte del modelo y va más rápido de lo que su tamaño sugiere).
 CATALOGO_OLLAMA = [
-    {"modelo": "llama3.2:3b", "gb": 2.0, "nivel": "Ligero", "nota": "Funciona en casi cualquier equipo. Apuntes básicos."},
-    {"modelo": "gemma3:4b", "gb": 3.3, "nivel": "Rápido", "nota": "Mejor español que llama3.2 con casi la misma velocidad."},
-    {"modelo": "qwen3:8b", "gb": 5.2, "nivel": "Recomendado", "nota": "Buen equilibrio entre calidad y velocidad. 16 GB de RAM."},
-    {"modelo": "gemma3:12b", "gb": 8.1, "nivel": "Preciso", "nota": "Apuntes más completos. Lento sin tarjeta gráfica."},
-    {"modelo": "gpt-oss:20b", "gb": 14, "nivel": "Máxima calidad", "nota": "El mejor local de la lista. 24 GB de RAM o más."},
+    {"modelo": "llama3.2:3b", "gb": 2.0, "seg_llamada": 38, "nivel": "Ligero",
+     "nota": "Funciona en casi cualquier equipo. Apuntes básicos."},
+    {"modelo": "gemma3:4b", "gb": 3.3, "seg_llamada": 60, "nivel": "Rápido",
+     "nota": "Mejor español que llama3.2 con casi la misma velocidad."},
+    {"modelo": "qwen3:8b", "gb": 5.2, "seg_llamada": 100, "nivel": "Recomendado",
+     "nota": "Buen equilibrio entre calidad y velocidad. 16 GB de RAM."},
+    {"modelo": "gemma3:12b", "gb": 8.1, "seg_llamada": 155, "nivel": "Preciso",
+     "nota": "Apuntes más completos. Lento sin tarjeta gráfica."},
+    {"modelo": "gpt-oss:20b", "gb": 14, "seg_llamada": 90, "nivel": "Máxima calidad",
+     "nota": "El mejor local de la lista. 24 GB de RAM o más."},
 ]
 
 # Modelos que "piensan" antes de responder. En CPU eso cuesta minutos, así que se pide pensar lo mínimo.
@@ -97,7 +104,7 @@ def _anthropic(sistema: str, usuario: str, modelo: str, api_key: str | None = No
     try:
         import anthropic
     except ImportError as e:
-        raise ErrorProveedor("Falta el SDK oficial: pip install anthropic") from e
+        raise ErrorProveedor("Falta el SDK de Claude: pip install \"resumidor-videos[claude]\" (o pip install anthropic)") from e
 
     client = anthropic.Anthropic(api_key=api_key or None)  # sin key usa ANTHROPIC_API_KEY del .env
     extra = {}
@@ -135,7 +142,7 @@ def _openai(sistema: str, usuario: str, modelo: str, api_key: str | None = None)
     try:
         import openai
     except ImportError as e:
-        raise ErrorProveedor("Falta el SDK oficial: pip install openai") from e
+        raise ErrorProveedor("Falta el SDK de OpenAI: pip install \"resumidor-videos[openai]\" (o pip install openai)") from e
 
     client = openai.OpenAI(api_key=api_key or None)  # sin key usa OPENAI_API_KEY del .env
     try:
@@ -174,12 +181,12 @@ def modelos_ollama() -> list[str]:
         return []
 
 
-def disponibles() -> dict:
+def disponibles(instalados: list[str] | None = None) -> dict:
     """Qué está listo en este equipo, para avisar en la interfaz."""
     import importlib.util
     hay = lambda m: importlib.util.find_spec(m) is not None
     return {
-        "ollama": bool(modelos_ollama()),
+        "ollama": bool(modelos_ollama() if instalados is None else instalados),
         "anthropic_sdk": hay("anthropic"),
         "openai_sdk": hay("openai"),
         "faster_whisper": hay("faster_whisper"),
