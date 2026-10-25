@@ -23,6 +23,7 @@ MAX_BYTES = 8 * 1024**3  # 8 GB
 ORIGENES = {f"http://127.0.0.1:{PUERTO}", f"http://localhost:{PUERTO}"}
 
 trabajos: dict[str, dict] = {}
+descargas: dict[str, dict] = {}  # modelo de Ollama -> estado de su descarga
 candado_llm = threading.Lock()  # un resumen a la vez: Ollama y Whisper en local no ganan nada en paralelo
 
 
@@ -51,8 +52,25 @@ def procesar(id_: str, ruta: Path, opciones: dict) -> None:
                  srt=salida.with_suffix(".srt").name if salida.with_suffix(".srt").exists() else None)
     except Exception as e:  # se muestra en la interfaz; la key nunca forma parte del mensaje
         t.update(estado="error", mensaje=str(e))
+        resumir.traza({"error": type(e).__name__, "mensaje": str(e)[:300], "proveedor": opciones.get("proveedor"),
+                       "modelo": opciones.get("modelo"), "archivo": Path(t["archivo"]).suffix.lower()})
     finally:
         opciones.pop("api_key", None)
+
+
+def descargar(modelo: str) -> None:
+    d = descargas[modelo]
+
+    def progreso(fraccion, mensaje):
+        if fraccion is not None:
+            d["progreso"] = round(fraccion, 3)
+        d["mensaje"] = mensaje
+
+    try:
+        proveedores.descargar_ollama(modelo, progreso)
+        d.update(estado="listo", progreso=1, mensaje="Descargado")
+    except Exception as e:
+        d.update(estado="error", mensaje=str(e))
 
 
 class Manejador(BaseHTTPRequestHandler):
@@ -81,9 +99,11 @@ class Manejador(BaseHTTPRequestHandler):
         if url.path == "/":
             self._enviar(HTML.read_bytes(), "text/html; charset=utf-8")
         elif url.path == "/api/info":
+            instalados = proveedores.modelos_ollama()
             self._json({
                 "disponibles": proveedores.disponibles(),
-                "modelos_ollama": proveedores.modelos_ollama(),
+                "modelos_ollama": instalados,
+                "catalogo_ollama": [{**m, "instalado": m["modelo"] in instalados} for m in proveedores.CATALOGO_OLLAMA],
                 "modelos_por_defecto": proveedores.MODELOS_POR_DEFECTO,
                 "modelos_whisper": MODELOS_WHISPER,
                 "extensiones": sorted(EXT_TEXTO | EXT_MEDIA),
@@ -94,6 +114,8 @@ class Manejador(BaseHTTPRequestHandler):
                 self._json({k: v for k, v in t.items() if k != "ruta"})
             else:
                 self._json({"estado": "desconocido"}, 404)
+        elif url.path == "/api/ollama/descargas":
+            self._json(descargas)
         elif url.path.startswith("/descargar/"):
             nombre = Path(unquote(url.path.rsplit("/", 1)[-1])).name
             ruta = resumir.SALIDA / nombre
@@ -146,6 +168,19 @@ class Manejador(BaseHTTPRequestHandler):
                 return self._json({"error": "Proveedor no válido"}, 400)
             t.update(estado="en_cola", progreso=0, mensaje="Empezando…", markdown=None, salida=None)
             threading.Thread(target=procesar, args=(opciones["id"], Path(t["ruta"]), opciones), daemon=True).start()
+            return self._json({"ok": True})
+
+        if url.path == "/api/ollama/descargar":
+            try:
+                modelo = json.loads((self.rfile.read(largo) or b"{}").decode("utf-8")).get("modelo", "")
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return self._json({"error": "Petición mal formada"}, 400)
+            # Solo modelos del catálogo: la interfaz no debe poder descargar cualquier cosa.
+            if modelo not in {m["modelo"] for m in proveedores.CATALOGO_OLLAMA}:
+                return self._json({"error": "Modelo fuera del catálogo"}, 400)
+            if descargas.get(modelo, {}).get("estado") != "descargando":
+                descargas[modelo] = {"estado": "descargando", "progreso": 0, "mensaje": "Empezando…"}
+                threading.Thread(target=descargar, args=(modelo,), daemon=True).start()
             return self._json({"ok": True})
 
         self._json({"error": "No encontrado"}, 404)
