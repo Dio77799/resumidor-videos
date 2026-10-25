@@ -72,6 +72,46 @@ class TestPipeline(unittest.TestCase):
         resumir.resumir(EJEMPLO, proveedor="anthropic", api_key="sk-secreta-123", progreso=lambda f, m: None)
         self.assertNotIn("sk-secreta-123", resumir.LOG.read_text(encoding="utf-8"))
 
+    def test_la_segunda_vez_reutiliza_la_transcripcion(self):
+        audio = Path(self.tmp.name) / "clase.mp3"
+        audio.write_bytes(b"audio de prueba")
+        segmentos = [Segmento(0.0, 5.0, "Hola"), Segmento(5.0, 9.0, "mundo")]
+        with mock.patch.object(resumir, "CACHE", Path(self.tmp.name) / "cache"), \
+             mock.patch.object(resumir, "obtener_segmentos", return_value=segmentos) as transcribir:
+            primera = resumir.resumir(audio, proveedor="ollama", progreso=lambda f, m: None)
+            segunda = resumir.resumir(audio, proveedor="ollama", progreso=lambda f, m: None)
+            otra_config = resumir.resumir(audio, proveedor="ollama", modelo_whisper="medium", progreso=lambda f, m: None)
+        self.assertEqual(transcribir.call_count, 2)  # la primera y la de otro modelo de Whisper
+        self.assertFalse(primera.estadisticas["cache"])
+        self.assertTrue(segunda.estadisticas["cache"])
+        self.assertEqual(segunda.estadisticas["seg_transcripcion"], 0)
+        self.assertFalse(otra_config.estadisticas["cache"])
+
+    def test_modo_reunion_usa_sus_plantillas(self):
+        def llm(proveedor, sistema, usuario, modelo=None, api_key=None):
+            self.assertIn("reunión", usuario)
+            return ("### Resumen general\nX\n\n**Decisiones**\n- A\n\n## Tareas pendientes:\n- B\n\n"
+                    "## Notas por sección\n### Tema\nY")
+        proveedores.completar.side_effect = llm
+        r = resumir.resumir(EJEMPLO, proveedor="ollama", modo="reunion", progreso=lambda f, m: None)
+        texto = r.md.read_text(encoding="utf-8")
+        self.assertIn("## Resumen general", texto)
+        self.assertIn("## Tareas pendientes", texto)
+
+    def test_modo_desconocido(self):
+        with self.assertRaises(ValueError):
+            resumir.resumir(EJEMPLO, proveedor="ollama", modo="poesia", progreso=lambda f, m: None)
+
+    def test_comando_con_varios_archivos(self):
+        salida = Path(self.tmp.name) / "apuntes"
+        with mock.patch("builtins.print"):
+            resumir.main([str(EJEMPLO), str(EJEMPLO), "--salida", str(salida), "--modo", "charla"])
+        self.assertEqual(len(list(salida.glob("*.md"))), 2)
+
+    def test_comando_rechaza_archivos_que_no_existen(self):
+        with self.assertRaises(SystemExit), mock.patch("sys.stderr"):
+            resumir.main(["no_existe.mp4"])
+
     def test_agrupar_respeta_el_tamano(self):
         segmentos = [Segmento(i, i + 1, "x" * 100) for i in range(10)]
         bloques = resumir.agrupar(segmentos, 350)

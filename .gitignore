@@ -8,6 +8,7 @@ salida/
 notas/
 uploads/
 logs/
+cache/
 chroma_db/
 *.mp4
 *.mkv

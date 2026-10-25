@@ -45,7 +45,7 @@ packages = ["resumidor"]
 version = { attr = "resumidor.__version__" }
 
 [tool.setuptools.package-data]
-resumidor = ["prompts/*.md", "web/*.html"]
+resumidor = ["prompts/*.md", "prompts/*/*.md", "web/*.html"]
 
 [tool.ruff]
 line-length = 130

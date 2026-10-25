@@ -41,6 +41,8 @@ Antes de cualquier `pip install`, `npm install`, extensión o programa:
 | 2026-10-24 | Infraestructura del repo: LICENSE (MIT), tests `unittest` sin dependencias, CI (ruff + tests en Linux/Windows/macOS), Dependabot, plantillas de issues/PR, CONTRIBUTING, SECURITY, lanzadores `iniciar.bat`/`iniciar.sh`, skill `skills/resumir-video`. Repo público en GitHub con OK del usuario. |
 | 2026-10-24 | Catálogo de modelos de Ollama descargables desde la interfaz; avisos si se pierde un trabajo; errores en la traza. Descargado para pruebas el modelo Whisper `large-v3-turbo` (pesos de Hugging Face). |
 | 2026-10-24 | v0.2: paquete instalable `resumidor/` con extras `[audio]`, `[claude]`, `[openai]`, `[todo]` y comandos `resumidor` / `resumidor-web`. Estimación de tiempo y Wh (`energia.py`) calibrada con las trazas. Interfaz simplificada con temas (auto, claro, zen, nocturno). Optimizaciones medidas: Whisper beam 1 y llamada única para videos cortos (−33 % de tiempo total). `setuptools` 84.2.1 usado solo para construir (revisado; su `.pth` es el oficial de distutils). |
+| 2026-10-24 | Prueba larga con material de dominio público (LibriVox, Internet Archive, MD5 verificado). Descargado `qwen3:8b` (catálogo oficial de Ollama) con OK del usuario para comparar calidad. |
+| 2026-10-24 | v0.3: caché de transcripciones (SHA-256), modos clase/reunión/charla, varios archivos por comando, temas retro (fósforo verde y ámbar, diseño propio sin marcas de terceros), banner `docs/banner.svg`. Ideas tomadas de reko, mediascribe y lecture-atelier. Por pedido del usuario, se minimizan las pruebas locales para ahorrar luz. |
 
 ## Hoja de ruta
 1. ✅ Interfaz web local: subir archivo, elegir proveedor (Ollama / Claude / OpenAI) y pegar API key, ver progreso y resumen.
