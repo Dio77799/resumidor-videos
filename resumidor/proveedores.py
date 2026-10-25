@@ -16,10 +16,12 @@ import urllib.request
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 
 MODELOS_POR_DEFECTO = {
-    "ollama": os.getenv("OLLAMA_MODELO", "llama3.2:3b"),
-    "anthropic": os.getenv("ANTHROPIC_MODELO", "claude-opus-5-5"),
-    "openai": os.getenv("OPENAI_MODELO", "gpt-5-mini"),
+    "ollama": os.getenv("OLLAMA_MODELO") or "llama3.2:3b",
+    "anthropic": os.getenv("ANTHROPIC_MODELO") or "claude-opus-5-5",
+    "openai": os.getenv("OPENAI_MODELO") or "gpt-5-mini",
 }
+# Si no se fija OLLAMA_MODELO, se usa el mejor de estos que esté instalado (de mejor a más ligero).
+PREFERENCIA_OLLAMA = ["qwen3:8b", "gemma3:4b", "llama3.2:3b"]
 
 # Caracteres por bloque de transcripción. Los modelos locales pequeños tienen poco contexto.
 TAM_BLOQUE = {"ollama": 6000, "anthropic": 60000, "openai": 40000}
@@ -29,18 +31,19 @@ _CLAUDE_CON_FALLBACK = {"claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", 
 
 
 # Modelos locales recomendados (catálogo oficial de Ollama). Pensados para correr en CPU con 8–32 GB de RAM.
-# seg_llamada: segundos por petición en una laptop sin tarjeta gráfica. llama3.2:3b está medido; el resto se
-# estima por tamaño (gpt-oss activa solo una parte del modelo y va más rápido de lo que su tamaño sugiere).
+# seg_llamada: segundos por petición en una laptop sin tarjeta gráfica (i7 de 4 núcleos). Medidos: llama3.2:3b
+# (68 s, igual en videos cortos y largos) y qwen3:8b (159 s). El resto se estima por tamaño; gpt-oss activa
+# solo una parte del modelo y va más rápido de lo que su tamaño sugiere.
 CATALOGO_OLLAMA = [
-    {"modelo": "llama3.2:3b", "gb": 2.0, "seg_llamada": 38, "nivel": "Ligero",
-     "nota": "Funciona en casi cualquier equipo. Apuntes básicos."},
-    {"modelo": "gemma3:4b", "gb": 3.3, "seg_llamada": 60, "nivel": "Rápido",
+    {"modelo": "llama3.2:3b", "gb": 2.0, "seg_llamada": 68, "nivel": "Ligero",
+     "nota": "Funciona en casi cualquier equipo. Apuntes básicos, con errores en textos largos."},
+    {"modelo": "gemma3:4b", "gb": 3.3, "seg_llamada": 100, "nivel": "Rápido",
      "nota": "Mejor español que llama3.2 con casi la misma velocidad."},
-    {"modelo": "qwen3:8b", "gb": 5.2, "seg_llamada": 100, "nivel": "Recomendado",
-     "nota": "Buen equilibrio entre calidad y velocidad. 16 GB de RAM."},
-    {"modelo": "gemma3:12b", "gb": 8.1, "seg_llamada": 155, "nivel": "Preciso",
+    {"modelo": "qwen3:8b", "gb": 5.2, "seg_llamada": 159, "nivel": "Recomendado",
+     "nota": "Apuntes fieles y detallados. Probado en una clase de 27 min. 16 GB de RAM."},
+    {"modelo": "gemma3:12b", "gb": 8.1, "seg_llamada": 240, "nivel": "Preciso",
      "nota": "Apuntes más completos. Lento sin tarjeta gráfica."},
-    {"modelo": "gpt-oss:20b", "gb": 14, "seg_llamada": 90, "nivel": "Máxima calidad",
+    {"modelo": "gpt-oss:20b", "gb": 14, "seg_llamada": 150, "nivel": "Máxima calidad",
      "nota": "El mejor local de la lista. 24 GB de RAM o más."},
 ]
 
@@ -169,7 +172,15 @@ _PROVEEDORES = {"ollama": _ollama, "anthropic": _anthropic, "openai": _openai}
 def completar(proveedor: str, sistema: str, usuario: str, modelo: str | None = None, api_key: str | None = None) -> str:
     if proveedor not in _PROVEEDORES:
         raise ErrorProveedor(f"Proveedor desconocido: {proveedor}")
-    return _PROVEEDORES[proveedor](sistema, usuario, modelo or MODELOS_POR_DEFECTO[proveedor], api_key=api_key)
+    return _PROVEEDORES[proveedor](sistema, usuario, modelo or modelo_por_defecto(proveedor), api_key=api_key)
+
+
+def modelo_por_defecto(proveedor: str, instalados: list[str] | None = None) -> str:
+    """Para Ollama, el mejor modelo recomendado que ya esté descargado (salvo que OLLAMA_MODELO diga otro)."""
+    if proveedor != "ollama" or os.getenv("OLLAMA_MODELO"):
+        return MODELOS_POR_DEFECTO[proveedor]
+    instalados = modelos_ollama() if instalados is None else instalados
+    return next((m for m in PREFERENCIA_OLLAMA if m in instalados), MODELOS_POR_DEFECTO["ollama"])
 
 
 def modelos_ollama() -> list[str]:

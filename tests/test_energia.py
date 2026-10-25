@@ -21,7 +21,7 @@ class TestEnergia(unittest.TestCase):
         e = energia.estimar("ollama", "llama3.2:3b", "small", 600, None, True, self.log)
         # 10 min de habla ≈ 9000 caracteres ≈ 2 partes + resumen final
         self.assertEqual(e["llamadas"], 3)
-        self.assertEqual(e["segundos"], round(600 * energia.WHISPER_FACTOR["small"] + 5 + 3 * 38))
+        self.assertEqual(e["segundos"], round(600 * energia.WHISPER_FACTOR["small"] + 5 + 3 * 68))  # 68 s/llamada, medido
         self.assertFalse(e["medido"])
 
     def test_se_calibra_con_el_historial(self):
