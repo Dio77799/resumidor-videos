@@ -80,7 +80,8 @@ def resumir(ruta: Path, proveedor: str = "ollama", modelo: str | None = None, ap
     """Devuelve la ruta del .md generado. `progreso(fraccion 0..1, mensaje)` es opcional."""
     avisar = progreso or (lambda f, m: print(f"[{f:4.0%}] {m}"))
     modelo = modelo or proveedores.MODELOS_POR_DEFECTO[proveedor]
-    titulo = titulo or ruta.stem.replace("_", " ").replace("-", " ").strip().capitalize()
+    titulo = (titulo or ruta.stem).replace("_", " ").strip()
+    titulo = titulo[:1].upper() + titulo[1:]
     nombre_idioma = IDIOMAS.get(idioma, idioma)
     t0 = time.time()
 
