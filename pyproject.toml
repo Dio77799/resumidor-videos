@@ -1,0 +1,15 @@
+[project]
+name = "resumidor-videos"
+version = "0.1.0"
+description = "Convierte tus videos, audios o transcripciones en apuntes Markdown con Ollama local o tu propia API key."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 130
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP"]
+ignore = ["E731"]

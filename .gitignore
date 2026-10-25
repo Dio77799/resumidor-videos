@@ -1,0 +1,28 @@
+# Secretos
+.env
+*.key
+
+# Contenido y resultados de usuarios (nunca al repo)
+entrada/
+salida/
+notas/
+uploads/
+logs/
+chroma_db/
+*.mp4
+*.mkv
+*.mov
+*.mp3
+*.wav
+*.m4a
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Herramientas
+.ruff_cache/
+.pytest_cache/

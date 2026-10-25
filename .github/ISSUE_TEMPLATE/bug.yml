@@ -1,0 +1,36 @@
+name: Reportar un error
+description: Algo no funciona como esperabas
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "⚠️ No pegues tu API key ni contenido con derechos de autor. Si hace falta, usa un fragmento corto e inventado."
+  - type: textarea
+    id: que_paso
+    attributes:
+      label: ¿Qué pasó?
+      description: Qué hiciste, qué esperabas y qué ocurrió.
+    validations:
+      required: true
+  - type: dropdown
+    id: proveedor
+    attributes:
+      label: Proveedor
+      options: [Ollama, Claude, OpenAI, No aplica]
+    validations:
+      required: true
+  - type: input
+    id: formato
+    attributes:
+      label: Tipo de archivo
+      placeholder: "mp4, mp3, .srt, .vtt, .txt…"
+  - type: input
+    id: entorno
+    attributes:
+      label: Sistema y versión de Python
+      placeholder: "Windows 11, Python 3.12"
+  - type: textarea
+    id: error
+    attributes:
+      label: Mensaje de error
+      render: text

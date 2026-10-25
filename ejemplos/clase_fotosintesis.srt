@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:09,000
+Hola a todos. Hoy vamos a ver qué es la fotosíntesis y por qué es tan importante para la vida en la Tierra.
+
+2
+00:00:09,000 --> 00:00:21,000
+La fotosíntesis es el proceso por el cual las plantas, las algas y algunas bacterias transforman la energía de la luz en energía química.
+
+3
+00:00:21,000 --> 00:00:35,000
+Para hacerlo usan tres ingredientes: luz solar, agua que toman por las raíces y dióxido de carbono que entra por unos poros de las hojas llamados estomas.
+
+4
+00:00:35,000 --> 00:00:50,000
+El resultado es glucosa, que la planta usa como alimento y para construir sus tejidos, y oxígeno, que se libera a la atmósfera.
+
+5
+00:00:50,000 --> 00:01:05,000
+Todo esto ocurre dentro de los cloroplastos, que contienen clorofila. La clorofila es el pigmento verde que absorbe sobre todo la luz roja y azul.
+
+6
+00:01:05,000 --> 00:01:22,000
+El proceso tiene dos fases. En la fase luminosa, que ocurre en los tilacoides, la luz rompe moléculas de agua, se libera oxígeno y se produce ATP y NADPH.
+
+7
+00:01:22,000 --> 00:01:40,000
+En la fase oscura, o ciclo de Calvin, que ocurre en el estroma, la planta usa ese ATP y NADPH para fijar el dióxido de carbono y fabricar glucosa. No necesita luz directamente.
+
+8
+00:01:40,000 --> 00:01:58,000
+¿Por qué importa? Porque casi todo el oxígeno que respiramos viene de la fotosíntesis, y porque es la base de las cadenas alimentarias: los herbívoros comen plantas y los carnívoros comen herbívoros.
+
+9
+00:01:58,000 --> 00:02:12,000
+Además, al absorber dióxido de carbono, los bosques y el fitoplancton ayudan a regular el clima. Para la próxima clase, piensen qué pasaría si la luz solar se redujera a la mitad.
