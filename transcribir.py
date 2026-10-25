@@ -50,7 +50,7 @@ def leer_subtitulos(texto: str) -> list[Segmento]:
         for i, linea in enumerate(lineas):
             m = _TIEMPO.search(linea)
             if m:
-                cuerpo = " ".join(_ETIQUETAS.sub("", l).strip() for l in lineas[i + 1:]).strip()
+                cuerpo = " ".join(_ETIQUETAS.sub("", t).strip() for t in lineas[i + 1:]).strip()
                 if cuerpo:
                     segmentos.append(Segmento(_a_segundos(m.group(1)), _a_segundos(m.group(2)), cuerpo))
                 break
