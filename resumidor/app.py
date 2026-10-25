@@ -112,7 +112,8 @@ class Manejador(BaseHTTPRequestHandler):
                 "catalogo_ollama": [{**m, "instalado": m["modelo"] in instalados, "hora": capacidad[m["modelo"]]}
                                     for m in proveedores.CATALOGO_OLLAMA],
                 "watts": energia.WATTS,
-                "modelos_por_defecto": proveedores.MODELOS_POR_DEFECTO,
+                "modelos_por_defecto": {p: proveedores.modelo_por_defecto(p, instalados)
+                                        for p in proveedores.MODELOS_POR_DEFECTO},
                 "modelos_whisper": MODELOS_WHISPER,
                 "modos": resumir.MODOS,
                 "extensiones": sorted(EXT_TEXTO | EXT_MEDIA),
@@ -129,7 +130,7 @@ class Manejador(BaseHTTPRequestHandler):
             proveedor = q.get("proveedor", "ollama")
             if not t or proveedor not in proveedores.MODELOS_POR_DEFECTO:
                 return self._json({"error": "No encontrado"}, 404)
-            modelo = q.get("modelo") or proveedores.MODELOS_POR_DEFECTO[proveedor]
+            modelo = q.get("modelo") or proveedores.modelo_por_defecto(proveedor)
             whisper = q.get("whisper", "small")
             en_cache = bool(t.get("huella")) and resumir.ruta_cache(t["huella"], whisper, q.get("idioma", "es")).exists()
             # Si la transcripción ya está en caché, Whisper no trabaja: solo se estima el resumen.

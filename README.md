@@ -87,15 +87,26 @@ archivo (mp4, mkv, mp3, wav, m4a, .srt, .vtt, .txt)
 | [`skills/resumir-video/`](skills/resumir-video/SKILL.md) | Skill para usarlo desde Claude Code |
 
 ## Modelos locales
-Desde la interfaz (**Opciones → Modelos para tu equipo**) puedes descargar con un clic modelos mejores que el de serie. Cada uno muestra cuánto tarda y cuánta luz gasta una hora de video en tu equipo.
+Desde la interfaz (**Opciones → Modelos para tu equipo**) puedes descargar con un clic modelos mejores que el de serie. Cada uno muestra cuánto tarda y cuánta luz gasta una hora de video en tu equipo. La app usa automáticamente el mejor que tengas instalado.
 
 | Modelo | Tamaño | Para qué |
 |---|---|---|
-| `llama3.2:3b` | 2 GB | Ligero, funciona en casi cualquier equipo |
-| `gemma3:4b` | 3,3 GB | Rápido, mejor español |
-| `qwen3:8b` | 5,2 GB | Recomendado: equilibrio calidad/velocidad (16 GB de RAM) |
-| `gemma3:12b` | 8,1 GB | Apuntes más completos, más lento sin tarjeta gráfica |
+| `qwen3:8b` | 5,2 GB | **Recomendado:** apuntes fieles y detallados (16 GB de RAM) |
+| `gemma3:4b` | 3,3 GB | Rápido, mejor español que llama3.2 |
+| `llama3.2:3b` | 2 GB | Ligero, para equipos modestos; comete errores en textos largos |
+| `gemma3:12b` | 8,1 GB | Apuntes más completos, lento sin tarjeta gráfica |
 | `gpt-oss:20b` | 14 GB | La mejor calidad local (24 GB de RAM o más) |
+
+### Ejemplo real
+Una clase de 26 minutos (capítulo de *Comentarios reales de los incas*, grabación de dominio público de LibriVox), en una laptop sin tarjeta gráfica:
+
+| | `llama3.2:3b` | `qwen3:8b` |
+|---|---|---|
+| Tiempo total | 9 min | 17 min |
+| Consumo | ≈ 7 Wh | ≈ 13 Wh |
+| Calidad | Inventa datos y confunde hechos | Fiel, con nombres y detalles concretos |
+
+👉 [Apuntes generados con `qwen3:8b`, sin editar](ejemplos/comentarios_reales_incas_cap27.md)
 
 ## Rendimiento
 Medido en una laptop sin tarjeta gráfica (Intel i7-1185G7, 4 núcleos, 32 GB de RAM) con un video de 89 s y `llama3.2:3b`:

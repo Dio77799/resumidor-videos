@@ -19,12 +19,6 @@ CARACTERES_POR_MINUTO = 900  # habla en español: ~150 palabras por minuto
 WHISPER_FACTOR = {"tiny": 0.04, "base": 0.07, "small": 0.18, "medium": 0.4, "large-v3-turbo": 0.43, "large-v3": 0.85}
 SEG_LLAMADA_DESCONOCIDO = 60   # modelo local que no está en el catálogo
 SEG_LLAMADA_NUBE = 15          # Claude/OpenAI: casi todo es espera de red; no consume en tu equipo
-# La llamada única (video corto) escribe todos los apuntes de una vez: medido ≈ 1,8 llamadas normales.
-PESO_LLAMADA_UNICA = 1.8
-
-
-def _peso(llamadas: int) -> float:
-    return PESO_LLAMADA_UNICA if llamadas == 1 else llamadas
 
 
 def _historial(log: Path) -> list[dict]:
@@ -51,7 +45,7 @@ def calibracion(log: Path) -> dict:
         if f.get("duracion_media") and f.get("seg_transcripcion") and not f.get("cache"):  # la caché no es medición
             whisper.setdefault(f["whisper"], []).append(f["seg_transcripcion"] / f["duracion_media"])
         if f.get("proveedor") == "ollama" and f.get("bloques"):
-            llm.setdefault(f["modelo"], []).append(f["seg_resumen"] / _peso(f.get("llamadas", f["bloques"] + 1)))
+            llm.setdefault(f["modelo"], []).append(f["seg_resumen"] / f.get("llamadas", f["bloques"] + 1))
     return {"whisper": {k: _promedio(v) for k, v in whisper.items()}, "llm": {k: _promedio(v) for k, v in llm.items()}}
 
 
@@ -81,10 +75,10 @@ def estimar(proveedor: str, modelo: str, whisper: str, duracion: float | None, c
         medido |= seg is not None
         if seg is None:
             seg = next((m["seg_llamada"] for m in proveedores.CATALOGO_OLLAMA if m["modelo"] == modelo), SEG_LLAMADA_DESCONOCIDO)
-        seg_resumen = _peso(llamadas) * seg
+        seg_resumen = llamadas * seg  # medido: ~igual por llamada en videos cortos (una) y largos (varias)
         seg_local = seg_transcripcion + seg_resumen
     else:
-        seg_resumen, seg_local = _peso(llamadas) * SEG_LLAMADA_NUBE, seg_transcripcion
+        seg_resumen, seg_local = llamadas * SEG_LLAMADA_NUBE, seg_transcripcion
 
     return {
         "segundos": round(seg_transcripcion + seg_resumen),

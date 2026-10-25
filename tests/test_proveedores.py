@@ -29,6 +29,15 @@ class TestOllama(unittest.TestCase):
         _, peticion = self.llamar("gemma3:4b", "ok")
         self.assertNotIn("think", peticion)
 
+    def test_elige_el_mejor_modelo_instalado(self):
+        with mock.patch.dict("os.environ", {"OLLAMA_MODELO": ""}):
+            self.assertEqual(proveedores.modelo_por_defecto("ollama", ["llama3.2:3b", "qwen3:8b"]), "qwen3:8b")
+            self.assertEqual(proveedores.modelo_por_defecto("ollama", ["llama3.2:3b"]), "llama3.2:3b")
+            self.assertEqual(proveedores.modelo_por_defecto("ollama", []), "llama3.2:3b")
+        with mock.patch.dict("os.environ", {"OLLAMA_MODELO": "mistral:7b"}), \
+             mock.patch.dict(proveedores.MODELOS_POR_DEFECTO, {"ollama": "mistral:7b"}):
+            self.assertEqual(proveedores.modelo_por_defecto("ollama", ["qwen3:8b"]), "mistral:7b")
+
     def test_catalogo_bien_formado(self):
         for m in proveedores.CATALOGO_OLLAMA:
             self.assertRegex(m["modelo"], r"^[a-z0-9.\-]+:[a-z0-9.\-]+$")

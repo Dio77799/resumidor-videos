@@ -131,7 +131,7 @@ def resumir(ruta: Path, proveedor: str = "ollama", modelo: str | None = None, ap
             una_llamada: bool = True, modo: str = "clase") -> Resultado:
     """Genera los apuntes. `progreso(fraccion 0..1, mensaje)` es opcional."""
     avisar = progreso or (lambda f, m: print(f"[{f:4.0%}] {m}"))
-    modelo = modelo or proveedores.MODELOS_POR_DEFECTO[proveedor]
+    modelo = modelo or proveedores.modelo_por_defecto(proveedor)
     if modo not in MODOS:
         raise ValueError(f"Modo desconocido: {modo}. Usa {', '.join(MODOS)}.")
     titulo = (titulo or ruta.stem).replace("_", " ").strip()
@@ -227,7 +227,8 @@ def main(argv=None):
     p.add_argument("--modo", default="clase", choices=list(MODOS),
                    help="clase (preguntas de repaso), reunion (decisiones y tareas) o charla (ideas y citas)")
     p.add_argument("--proveedor", default=os.getenv("PROVEEDOR", "ollama"), choices=["ollama", "anthropic", "openai"])
-    p.add_argument("--modelo", help="por defecto: llama3.2:3b, claude-opus-5-5 o gpt-5-mini según el proveedor")
+    p.add_argument("--modelo", help="por defecto: el mejor local instalado (qwen3:8b > gemma3:4b > llama3.2:3b), "
+                                    "claude-opus-5-5 o gpt-5-mini")
     p.add_argument("--idioma", default="es", help="idioma de los apuntes y del audio (es, en, pt…)")
     p.add_argument("--whisper", default="small", help="tiny, base, small, medium, large-v3-turbo, large-v3")
     p.add_argument("--salida", type=Path, help="carpeta donde guardar los apuntes (por defecto ./salida)")
