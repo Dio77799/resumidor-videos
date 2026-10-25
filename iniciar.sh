@@ -5,4 +5,4 @@ if [ ! -x .venv/bin/python ]; then
   echo "Preparando el entorno por primera vez..."
   python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt || exit 1
 fi
-exec .venv/bin/python app.py
+exec .venv/bin/python -m resumidor --web

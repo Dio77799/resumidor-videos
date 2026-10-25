@@ -2,7 +2,7 @@
 Interfaz web local: arrastras el archivo, eliges proveedor, ves el progreso y descargas los apuntes.
 Solo librería estándar. Escucha únicamente en 127.0.0.1.
 
-Uso:  python app.py   ->  abre http://127.0.0.1:8770
+Uso:  resumidor --web   (o python -m resumidor --web)  ->  abre http://127.0.0.1:8770
 """
 import json
 import threading
@@ -10,15 +10,16 @@ import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
-import proveedores
-import resumir
-from transcribir import EXT_MEDIA, EXT_TEXTO, MODELOS_WHISPER
+from . import energia
+from . import proveedores
+from . import resumir
+from .transcribir import EXT_MEDIA, EXT_TEXTO, MODELOS_WHISPER, medir
 
 PUERTO = 8770
-HTML = resumir.BASE / "web" / "index.html"
-ENTRADA = resumir.BASE / "entrada"
+HTML = resumir.PAQUETE / "web" / "index.html"
+ENTRADA = resumir.DATOS / "entrada"
 MAX_BYTES = 8 * 1024**3  # 8 GB
 ORIGENES = {f"http://127.0.0.1:{PUERTO}", f"http://localhost:{PUERTO}"}
 
@@ -38,7 +39,7 @@ def procesar(id_: str, ruta: Path, opciones: dict) -> None:
             progreso(0, "En cola: esperando a que termine el resumen anterior…")
         with candado_llm:
             t["estado"] = "procesando"
-            salida = resumir.resumir(
+            r = resumir.resumir(
                 ruta,
                 proveedor=opciones["proveedor"],
                 modelo=opciones.get("modelo") or None,
@@ -48,8 +49,11 @@ def procesar(id_: str, ruta: Path, opciones: dict) -> None:
                 titulo=opciones.get("titulo") or Path(t["archivo"]).stem,
                 progreso=progreso,
             )
-        t.update(estado="listo", salida=salida.name, markdown=salida.read_text(encoding="utf-8"),
-                 srt=salida.with_suffix(".srt").name if salida.with_suffix(".srt").exists() else None)
+        est = r.estadisticas
+        seg_local = (est["seg_transcripcion"] or 0) + (est["seg_resumen"] if est["proveedor"] == "ollama" else 0)
+        t.update(estado="listo", salida=r.md.name, markdown=r.md.read_text(encoding="utf-8"),
+                 srt=r.srt.name if r.srt else None,
+                 real={"segundos": est["segundos"], "wh": round(energia.wh(seg_local), 1), "watts": energia.WATTS})
     except Exception as e:  # se muestra en la interfaz; la key nunca forma parte del mensaje
         t.update(estado="error", mensaje=str(e))
         resumir.traza({"error": type(e).__name__, "mensaje": str(e)[:300], "proveedor": opciones.get("proveedor"),
@@ -100,10 +104,13 @@ class Manejador(BaseHTTPRequestHandler):
             self._enviar(HTML.read_bytes(), "text/html; charset=utf-8")
         elif url.path == "/api/info":
             instalados = proveedores.modelos_ollama()
+            capacidad = energia.capacidad_catalogo(resumir.LOG)
             self._json({
-                "disponibles": proveedores.disponibles(),
+                "disponibles": proveedores.disponibles(instalados),
                 "modelos_ollama": instalados,
-                "catalogo_ollama": [{**m, "instalado": m["modelo"] in instalados} for m in proveedores.CATALOGO_OLLAMA],
+                "catalogo_ollama": [{**m, "instalado": m["modelo"] in instalados, "hora": capacidad[m["modelo"]]}
+                                    for m in proveedores.CATALOGO_OLLAMA],
+                "watts": energia.WATTS,
                 "modelos_por_defecto": proveedores.MODELOS_POR_DEFECTO,
                 "modelos_whisper": MODELOS_WHISPER,
                 "extensiones": sorted(EXT_TEXTO | EXT_MEDIA),
@@ -114,6 +121,16 @@ class Manejador(BaseHTTPRequestHandler):
                 self._json({k: v for k, v in t.items() if k != "ruta"})
             else:
                 self._json({"estado": "desconocido"}, 404)
+        elif url.path == "/api/estimar":
+            q = {k: v[0] for k, v in parse_qs(url.query).items()}
+            t = trabajos.get(q.get("id", ""))
+            proveedor = q.get("proveedor", "ollama")
+            if not t or proveedor not in proveedores.MODELOS_POR_DEFECTO:
+                return self._json({"error": "No encontrado"}, 404)
+            modelo = q.get("modelo") or proveedores.MODELOS_POR_DEFECTO[proveedor]
+            es_media = Path(t["archivo"]).suffix.lower() in EXT_MEDIA
+            self._json(energia.estimar(proveedor, modelo, q.get("whisper", "small"), t.get("duracion"),
+                                       t.get("caracteres"), es_media, resumir.LOG))
         elif url.path == "/api/ollama/descargas":
             self._json(descargas)
         elif url.path.startswith("/descargar/"):
@@ -152,9 +169,10 @@ class Manejador(BaseHTTPRequestHandler):
                         break
                     f.write(trozo)
                     restante -= len(trozo)
-            trabajos[id_] = {"estado": "subido", "archivo": nombre, "ruta": str(ruta),
-                             "progreso": 0, "mensaje": "Archivo recibido"}
-            return self._json({"id": id_, "titulo": Path(nombre).stem})
+            duracion, caracteres = medir(ruta)
+            trabajos[id_] = {"estado": "subido", "archivo": nombre, "ruta": str(ruta), "duracion": duracion,
+                             "caracteres": caracteres, "progreso": 0, "mensaje": "Archivo recibido"}
+            return self._json({"id": id_, "titulo": Path(nombre).stem, "duracion": duracion})
 
         if url.path == "/api/resumir":
             try:

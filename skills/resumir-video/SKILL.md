@@ -10,10 +10,10 @@ Usa el pipeline de este repo para que el resultado sea el mismo que en la interf
 1. Confirma que el archivo es del usuario o que tiene derecho a procesarlo. No descargues contenido de plataformas de terceros.
 2. Desde la raíz del repo ejecuta:
    ```bash
-   python resumir.py "<ruta del archivo>" --proveedor ollama --idioma es
+   resumidor "<ruta del archivo>" --proveedor ollama --idioma es
    ```
-   - Audio/video necesita `pip install -r requirements.txt`. Para `.srt`, `.vtt` o `.txt` no hace falta instalar nada.
+   - Si el comando no existe: `pip install -e ".[audio]"` desde la raíz del repo. Para `.srt`, `.vtt` o `.txt` no hace falta ningún extra.
    - `--proveedor anthropic` u `openai` usan la key de `.env`. Nunca pidas la key en el chat ni la escribas en archivos.
-   - `--whisper tiny|base|small|medium|large-v3` ajusta precisión contra velocidad (por defecto `small`).
+   - `--whisper` (tiny … large-v3-turbo) ajusta precisión contra velocidad; `--salida` elige la carpeta.
 3. El comando imprime la ruta del `.md` generado en `salida/`. Léelo y muéstrale al usuario el resumen general y dónde quedó el archivo.
-4. Si el usuario quiere otro estilo de apuntes, edita las plantillas de `prompts/` en lugar de cambiar el código.
+4. Si el usuario quiere otro estilo de apuntes, edita las plantillas de `resumidor/prompts/` en lugar de cambiar el código.

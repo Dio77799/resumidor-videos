@@ -1,9 +1,3 @@
-# Transcripción local de audio/video (revisado 2026-10-24: oficial SYSTRAN, MIT, sin .pth).
-# No hace falta si solo usas .srt, .vtt o .txt.
-faster-whisper==1.2.1
-# PyAV 19 rompe faster-whisper 1.2.1 (SYSTRAN/faster-whisper#1589); quitar al salir la siguiente versión.
-av>=11,<19
-
-# Opcionales: solo si usas tu propia API key (SDK oficiales).
-# anthropic==2.3.0
-# openai==3.37.0
+# Instala el proyecto con todo (audio/video, Claude y OpenAI). Las versiones están en pyproject.toml.
+# Solo lo que necesites:  pip install -e ".[audio]"   |   ".[claude]"   |   ".[openai]"
+-e .[todo]

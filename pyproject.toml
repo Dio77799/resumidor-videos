@@ -1,10 +1,51 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "resumidor-videos"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Convierte tus videos, audios o transcripciones en apuntes Markdown con Ollama local o tu propia API key."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
+keywords = ["whisper", "ollama", "resumen", "apuntes", "transcripcion", "local-llm"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Natural Language :: Spanish",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+# Sin dependencias obligatorias: con .srt/.vtt/.txt y Ollama funciona solo con la librería estándar.
+dependencies = []
+
+[project.optional-dependencies]
+audio = [
+    "faster-whisper==1.2.1",
+    # PyAV 19 rompe faster-whisper 1.2.1 (SYSTRAN/faster-whisper#1589); quitar al salir la siguiente versión.
+    "av>=17.1.0,<19",
+]
+claude = ["anthropic>=2.3,<3"]
+openai = ["openai>=3.37,<4"]
+todo = ["resumidor-videos[audio,claude,openai]"]
+
+[project.scripts]
+resumidor = "resumidor.resumir:main"
+resumidor-web = "resumidor.app:main"
+
+[project.urls]
+Repository = "https://github.com/Dio77799/resumidor-videos"
+Issues = "https://github.com/Dio77799/resumidor-videos/issues"
+
+[tool.setuptools]
+packages = ["resumidor"]
+
+[tool.setuptools.dynamic]
+version = { attr = "resumidor.__version__" }
+
+[tool.setuptools.package-data]
+resumidor = ["prompts/*.md", "web/*.html"]
 
 [tool.ruff]
 line-length = 130

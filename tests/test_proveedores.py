@@ -3,7 +3,7 @@ import json
 import unittest
 from unittest import mock
 
-import proveedores
+from resumidor import proveedores
 
 
 def respuesta(contenido):

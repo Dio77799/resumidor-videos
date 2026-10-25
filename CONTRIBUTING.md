@@ -6,7 +6,7 @@
 ```bash
 python -m venv .venv
 .venv/Scripts/activate        # Windows  (en Linux/macOS: source .venv/bin/activate)
-pip install -r requirements.txt
+pip install -e ".[todo]"
 python -m unittest discover -s tests -t .
 ```
 
@@ -19,7 +19,7 @@ python -m unittest discover -s tests -t .
 ## Ideas por dónde empezar
 - Nuevos proveedores compatibles (por ejemplo LM Studio o Gemini).
 - Exportar a otros formatos (PDF, Anki).
-- Mejorar las plantillas de `prompts/` para modelos pequeños.
+- Mejorar las plantillas de `resumidor/prompts/` para modelos pequeños.
 - Traducir la interfaz.
 
 Los agentes de IA que trabajen en el repo deben seguir [AGENTS.md](AGENTS.md).

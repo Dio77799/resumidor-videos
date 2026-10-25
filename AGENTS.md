@@ -39,6 +39,8 @@ Antes de cualquier `pip install`, `npm install`, extensión o programa:
 | 2026-10-24 | Implementados `transcribir.py`, `proveedores.py`, `resumir.py` (pipeline + CLI), `app.py` + `web/index.html` (interfaz), `prompts/` editables, `requirements.txt` y `ejemplos/clase_fotosintesis.srt` (CC0). Probado con Ollama llama3.2:3b sobre `.srt`. |
 | 2026-10-24 | Instalados en `.venv` (desde wheels escaneadas, `--no-index`): faster-whisper 1.2.1, anthropic 2.3.0, openai 3.37.0. PyAV fijado `<19` (19 rompe faster-whisper 1.2.1, issue SYSTRAN/faster-whisper#1589). Probado con audio propio generado por TTS. |
 | 2026-10-24 | Infraestructura del repo: LICENSE (MIT), tests `unittest` sin dependencias, CI (ruff + tests en Linux/Windows/macOS), Dependabot, plantillas de issues/PR, CONTRIBUTING, SECURITY, lanzadores `iniciar.bat`/`iniciar.sh`, skill `skills/resumir-video`. Repo público en GitHub con OK del usuario. |
+| 2026-10-24 | Catálogo de modelos de Ollama descargables desde la interfaz; avisos si se pierde un trabajo; errores en la traza. Descargado para pruebas el modelo Whisper `large-v3-turbo` (pesos de Hugging Face). |
+| 2026-10-24 | v0.2: paquete instalable `resumidor/` con extras `[audio]`, `[claude]`, `[openai]`, `[todo]` y comandos `resumidor` / `resumidor-web`. Estimación de tiempo y Wh (`energia.py`) calibrada con las trazas. Interfaz simplificada con temas (auto, claro, zen, nocturno). Optimizaciones medidas: Whisper beam 1 y llamada única para videos cortos (−33 % de tiempo total). `setuptools` 84.2.1 usado solo para construir (revisado; su `.pth` es el oficial de distutils). |
 
 ## Hoja de ruta
 1. ✅ Interfaz web local: subir archivo, elegir proveedor (Ollama / Claude / OpenAI) y pegar API key, ver progreso y resumen.

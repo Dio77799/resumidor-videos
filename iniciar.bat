@@ -6,5 +6,5 @@ if not exist .venv\Scripts\python.exe (
   python -m venv .venv || (echo Necesitas Python 3.10 o superior: https://www.python.org/downloads/ & pause & exit /b 1)
   .venv\Scripts\python -m pip install -r requirements.txt
 )
-.venv\Scripts\python app.py
+.venv\Scripts\python -m resumidor --web
 pause

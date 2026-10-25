@@ -3,18 +3,24 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import proveedores
-import resumir
-from transcribir import Segmento
+from resumidor import proveedores
+from resumidor import resumir
+from resumidor.transcribir import Segmento
 
 EJEMPLO = Path(__file__).resolve().parent.parent / "ejemplos" / "clase_fotosintesis.srt"
 
 
+FINAL = "### Resumen general\nTexto.\n\n### Apuntes clave\n- Uno\n\n### Preguntas de repaso\n1. ¿Qué?"
+SECCION = "### Tema de prueba\nResumen.\n\n- Idea"
+
+
 def llm_falso(proveedor, sistema, usuario, modelo=None, api_key=None):
-    """Simula al modelo: responde según qué plantilla recibió."""
+    """Simula al modelo: responde según qué plantilla recibió (con los títulos mal nivelados a propósito)."""
+    if "transcripción completa" in usuario:
+        return f"{FINAL}\n\n### Notas por sección\n{SECCION}"
     if "Estos son los apuntes por secciones" in usuario:
-        return "### Resumen general\nTexto.\n\n### Apuntes clave\n- Uno\n\n### Preguntas de repaso\n1. ¿Qué?"
-    return "### Tema de prueba\nResumen.\n\n- Idea"
+        return FINAL
+    return SECCION
 
 
 class TestPipeline(unittest.TestCase):
@@ -32,15 +38,35 @@ class TestPipeline(unittest.TestCase):
             p.stop()
         self.tmp.cleanup()
 
-    def test_genera_md_y_srt(self):
-        md = resumir.resumir(EJEMPLO, proveedor="ollama", progreso=lambda f, m: None)
-        texto = md.read_text(encoding="utf-8")
+    def comprobar_md(self, r) -> str:
+        texto = r.md.read_text(encoding="utf-8")
         self.assertTrue(texto.startswith("# Clase fotosintesis"))
+        self.assertIn("· duración 02:12", texto)
         # Los títulos que el modelo puso con ### se normalizan a ##.
         for seccion in ("## Resumen general", "## Apuntes clave", "## Preguntas de repaso", "## Notas por sección"):
             self.assertIn(seccion, texto)
+        self.assertEqual(texto.count("## Notas por sección"), 1)
+        self.assertTrue(r.srt.exists())
+        return texto
+
+    def test_una_llamada_si_cabe_entero(self):
+        r = resumir.resumir(EJEMPLO, proveedor="ollama", progreso=lambda f, m: None)
+        texto = self.comprobar_md(r)
+        self.assertEqual(proveedores.completar.call_count, 1)
+        self.assertEqual(r.estadisticas["llamadas"], 1)
+        self.assertNotIn("`[00:00", texto)  # sin tiempos por sección: no se inventa un tramo
+
+    def test_por_partes_da_el_mismo_formato(self):
+        r = resumir.resumir(EJEMPLO, proveedor="ollama", progreso=lambda f, m: None, una_llamada=False)
+        texto = self.comprobar_md(r)
+        self.assertEqual(proveedores.completar.call_count, 2)
         self.assertIn("### Tema de prueba `[00:00–02:12]`", texto)
-        self.assertTrue(md.with_suffix(".srt").exists())
+
+    def test_si_el_modelo_olvida_las_notas_no_falla(self):
+        proveedores.completar.side_effect = lambda *a, **k: FINAL
+        texto = resumir.resumir(EJEMPLO, proveedor="ollama", progreso=lambda f, m: None).md.read_text(encoding="utf-8")
+        self.assertIn("## Resumen general", texto)
+        self.assertNotIn("## Notas por sección", texto)
 
     def test_la_key_no_se_escribe_en_la_traza(self):
         resumir.resumir(EJEMPLO, proveedor="anthropic", api_key="sk-secreta-123", progreso=lambda f, m: None)
