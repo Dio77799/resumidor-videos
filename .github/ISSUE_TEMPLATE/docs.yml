@@ -1,0 +1,23 @@
+name: Mejorar la documentación
+description: Algo del README, CONTRIBUTING o la ayuda está mal, falta o no se entiende
+labels: [documentation]
+body:
+  - type: input
+    id: donde
+    attributes:
+      label: ¿Dónde?
+      placeholder: "README.md, sección Empezar"
+    validations:
+      required: true
+  - type: textarea
+    id: que_falta
+    attributes:
+      label: ¿Qué está mal o qué falta?
+    validations:
+      required: true
+  - type: checkboxes
+    id: hacerlo
+    attributes:
+      label: ¿Te animas?
+      options:
+        - label: Me gustaría enviar el PR yo
