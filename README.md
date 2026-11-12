@@ -138,9 +138,12 @@ Usa solo contenido que tengas derecho a procesar: tus clases, tus reuniones o ma
 El ejemplo [`ejemplos/clase_fotosintesis.srt`](ejemplos/clase_fotosintesis.srt) es material original de dominio público (CC0).
 
 ## Contribuir
-Las ideas y PRs son bienvenidos: lee [CONTRIBUTING.md](CONTRIBUTING.md).
+Las ideas y PRs son bienvenidos: lee [CONTRIBUTING.md](CONTRIBUTING.md). Los tests corren sin instalar nada y los issues [`good first issue`](https://github.com/Dio77799/resumidor-videos/labels/good%20first%20issue) son un buen punto de partida. Si usas IA para contribuir, revisa la sección *Uso de IA* de CONTRIBUTING.
 
 ---
 
 ### English
 **Resumidor de videos** turns your own videos, audio files or transcripts (.srt/.vtt/.txt) into Markdown study notes: summary, key points, section notes and review questions. Transcription runs locally with faster-whisper; notes are written locally with Ollama (free) or with your own Claude/OpenAI API key. Use the local web UI (`iniciar.bat` / `./iniciar.sh`) or install it as a terminal tool: `pip install "resumidor-videos[audio] @ git+https://github.com/Dio77799/resumidor-videos"` then `resumidor lecture.mp4`. Zero required dependencies, MIT licensed.
+
+---
+© 2026 James V ([Dio77799](https://github.com/Dio77799)). Licencia [MIT](LICENSE).

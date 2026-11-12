@@ -16,6 +16,11 @@ chroma_db/
 *.mp3
 *.wav
 *.m4a
+*.webm
+*.avi
+*.ogg
+*.flac
+*.opus
 
 # Python
 __pycache__/
